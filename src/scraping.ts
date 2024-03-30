@@ -1,17 +1,10 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import {
-    ScrapingResult,
-    MangaInfo,
-    ScrapingError,
-    ScrapingOutcome,
-} from "./types";
+import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "./types";
 
 puppeteer.use(StealthPlugin());
 
-export async function scrapeSiteInfo(
-    elements: MangaInfo[],
-): Promise<ScrapingOutcome> {
+export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
@@ -24,9 +17,10 @@ export async function scrapeSiteInfo(
     for (const manga of elements) {
         if (!manga.alert) continue;
 
-        let maxChapter = -1;
+        let maxChapter = Number(manga.chapter);
         let maxChapterSite = null;
-        let encounteredErrors = true;
+        let encounteredErrors = false;
+        let foundNewChapter = false;
 
         for (const site of manga.sites) {
             const page = await browser.newPage();
@@ -39,14 +33,18 @@ export async function scrapeSiteInfo(
                     return content ? content.textContent || (content as HTMLElement).innerText : undefined;
                 }, site.selector);
 
-                const lastChapter = parseInt(lastChapterText || '', 10);
+                const lastChapterTextMatch = lastChapterText?.match(/\d+(\.\d+)?/);
+                const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0]) : NaN;
 
-                if (!isNaN(lastChapter) && lastChapter > maxChapter) {
-                    maxChapter = lastChapter;
-                    maxChapterSite = site;
-                    encounteredErrors = false;
+                if (!isNaN(lastChapter)) {
+                    foundNewChapter = true;
+                    if (lastChapter > maxChapter) {
+                        maxChapter = lastChapter;
+                        maxChapterSite = site;
+                    }
                 }
             } catch (error) {
+                encounteredErrors = true;
                 console.error(`Error scraping ${manga.name} at ${site.url}:`, error);
             } finally {
                 await page.close();
@@ -54,9 +52,16 @@ export async function scrapeSiteInfo(
         }
 
         if (maxChapterSite !== null) {
-            scrapingResults.push({ manga, lastChapter: maxChapter.toString(), site: maxChapterSite});
-        } else if (encounteredErrors) {
-            scrapingErrors.push({ name: manga.name, error: "Failed to scrape any site.", url: manga.sites.map(site => site.url).join(", ") });
+            scrapingResults.push({
+                manga,
+                lastChapter: maxChapter.toString(),
+                site: maxChapterSite,
+            });
+        } else if (!foundNewChapter && encounteredErrors) {
+            scrapingErrors.push({
+                name: manga.name,
+                error: "Failed to scrape any site for updates.",
+            });
         }
     }
 
