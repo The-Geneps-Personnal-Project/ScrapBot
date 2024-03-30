@@ -4,6 +4,8 @@ import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "./typ
 
 puppeteer.use(StealthPlugin());
 
+
+
 export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
     const browser = await puppeteer.launch({
         headless: true,
@@ -36,6 +38,8 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 const lastChapterTextMatch = lastChapterText?.match(/\d+(\.\d+)?/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0]) : NaN;
 
+                console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter)
+
                 if (!isNaN(lastChapter)) {
                     foundNewChapter = true;
                     if (lastChapter > maxChapter) {
@@ -63,6 +67,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 error: "Failed to scrape any site for updates.",
             });
         }
+        await new Promise(f => setTimeout(f, 1000 * 30)); //Waits 30 seconds between each manga
     }
 
     await browser.close();
