@@ -22,7 +22,6 @@ export interface ScrapingResult {
 export interface ScrapingError {
     name: string;
     error: unknown;
-    url: string;
 }
 
 export interface GraphqlQuery {
