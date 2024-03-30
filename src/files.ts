@@ -1,6 +1,11 @@
 import fs from "fs";
 import { MangaInfo, ScrapingResult, SiteInfo } from "./types";
 
+function replaceURL(url: string): string {
+    const withoutSpaces = url.replace(/ /g, "-");
+    return withoutSpaces.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase();
+}
+
 function readJSONFile<T>(filePath: string): T {
     try {
         const fileContent = fs.readFileSync(filePath, "utf8");
@@ -12,10 +17,10 @@ function readJSONFile<T>(filePath: string): T {
 }
 
 export function getMangasInfo(): MangaInfo[] {
-    const sitesDataContainer: {
+    const sitesData: {
         sites: SiteInfo[];
     } = readJSONFile("./stockage/sites.json");
-    const sitesData = sitesDataContainer.sites;
+
     const mangasData: {
         data: Array<{
             sites: string[];
@@ -24,16 +29,21 @@ export function getMangasInfo(): MangaInfo[] {
             chapter: string;
             alert: boolean;
         }>;
-    } = readJSONFile("./stockage/mangas.json");
+    } = readJSONFile("./stockage/mangas_test.json");
 
     const mangasInfo: MangaInfo[] = mangasData.data.map(manga => {
         const sites: SiteInfo[] = manga.sites.map(siteName => {
-            let siteInfo = sitesData.find(site => site.site === siteName);
+            const siteInfo = sitesData.sites.find(site => site.site === siteName);
             if (!siteInfo) {
                 throw new Error(`SiteInfo for ${siteName} not found.`);
             }
-            siteInfo.url = siteInfo?.url + manga.name.replace(/ /g, "-").toLowerCase();
-            return siteInfo;
+
+            const modifiedSiteInfo = {
+                ...siteInfo,
+                url: siteInfo.url + replaceURL(manga.name),
+            };
+
+            return modifiedSiteInfo;
         });
 
         return {
@@ -44,6 +54,7 @@ export function getMangasInfo(): MangaInfo[] {
             alert: manga.alert,
         };
     });
+
     return mangasInfo;
 }
 
@@ -52,23 +63,19 @@ export function setMangasInfo(results: ScrapingResult[]): void {
 
     const updatedMangas = currentMangas.map(manga => {
         const result = results.find(result => result.manga.name === manga.name);
-        if (result) {
-            const simplifiedSites = manga.sites.map(site => site.site);
-            return {
-                ...manga,
-                chapter: result.lastChapter,
-                sites: simplifiedSites,
-            };
-        } else {
-            return manga;
-        }
+        const updatedManga = {
+            ...manga,
+            sites: manga.sites.map(site => site.site),
+        };
+        if (result) updatedManga.chapter = result.lastChapter;
+        return updatedManga;
     });
     const mangasToWrite = {
         data: updatedMangas,
     };
 
     try {
-        fs.writeFileSync("./stockage/mangas.json", JSON.stringify(mangasToWrite, null, 2));
+        fs.writeFileSync("./stockage/mangas_test.json", JSON.stringify(mangasToWrite, null, 4));
     } catch (error) {
         console.error(`Failed to write to mangas.json:`, error);
     }
