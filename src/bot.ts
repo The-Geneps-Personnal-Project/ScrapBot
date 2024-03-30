@@ -24,7 +24,7 @@ async function setupChannels(): Promise<TextChannel[]> {
 
 async function setUpRepo(channels: TextChannel) {
     await execCommand("git pull").then(() => {
-        channels.bulkDelete(100); // Bulk delete the last 100 messages in the update channel
+        channels.bulkDelete(100);
     });
 }
 
@@ -36,7 +36,7 @@ async function getBackup(channels: TextChannel): Promise<Number> {
 async function sendUpdateMessages(ResultInfos: ScrapingResult[], channel: TextChannel) {
     for (const { manga, lastChapter, site } of ResultInfos) {
         await channel.send(
-            `${manga.name} : ${manga.chapter} -> ${lastChapter} at <${site.url + site.chapter_url + lastChapter}>`
+            `${manga.name} : ${manga.chapter} -> ${lastChapter} at <${site.url + site.chapter_url + manga.chapter}>`
         );
     }
 }
