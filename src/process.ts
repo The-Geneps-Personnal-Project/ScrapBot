@@ -7,7 +7,7 @@ export function execCommand(cmd: string) {
                 reject(err);
                 return;
             }
-        resolve(stdout);
+            resolve(stdout);
         });
     });
 }
