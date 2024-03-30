@@ -12,21 +12,27 @@ function readJSONFile<T>(filePath: string): T {
 }
 
 export function getMangasInfo(): MangaInfo[] {
-    const sitesData: SiteInfo[] = readJSONFile<SiteInfo[]>('sites.json');
-    const mangasData: Array<{
-        sites: string[];
-        anilist_id: string;
-        name: string;
-        chapter: string;
-        alert: boolean;
-    }> = readJSONFile('mangas.json');
+    const sitesDataContainer: {
+        sites: SiteInfo[];
+    } = readJSONFile("./stockage/sites.json");
+    const sitesData = sitesDataContainer.sites;
+    const mangasData: {
+        data: Array<{
+            sites: string[];
+            anilist_id: string;
+            name: string;
+            chapter: string;
+            alert: boolean;
+        }>;
+    } = readJSONFile("./stockage/mangas.json");
 
-    const mangasInfo: MangaInfo[] = mangasData.map(manga => {
+    const mangasInfo: MangaInfo[] = mangasData.data.map(manga => {
         const sites: SiteInfo[] = manga.sites.map(siteName => {
-            const siteInfo = sitesData.find(site => site.site === siteName);
+            let siteInfo = sitesData.find(site => site.site === siteName);
             if (!siteInfo) {
                 throw new Error(`SiteInfo for ${siteName} not found.`);
             }
+            siteInfo.url = siteInfo?.url + manga.name.replace(/ /g, "-").toLowerCase();
             return siteInfo;
         });
 
@@ -38,7 +44,6 @@ export function getMangasInfo(): MangaInfo[] {
             alert: manga.alert,
         };
     });
-
     return mangasInfo;
 }
 
@@ -48,18 +53,23 @@ export function setMangasInfo(results: ScrapingResult[]): void {
     const updatedMangas = currentMangas.map(manga => {
         const result = results.find(result => result.manga.name === manga.name);
         if (result) {
+            const simplifiedSites = manga.sites.map(site => site.site);
             return {
                 ...manga,
-                chapter: result.lastChapter
+                chapter: result.lastChapter,
+                sites: simplifiedSites,
             };
         } else {
             return manga;
         }
     });
+    const mangasToWrite = {
+        data: updatedMangas,
+    };
 
     try {
-        fs.writeFileSync("sites.json", JSON.stringify(updatedMangas, null, 2));
+        fs.writeFileSync("./stockage/mangas.json", JSON.stringify(mangasToWrite, null, 2));
     } catch (error) {
-        console.error(`Failed to write to sites.json:`, error);
+        console.error(`Failed to write to mangas.json:`, error);
     }
 }
