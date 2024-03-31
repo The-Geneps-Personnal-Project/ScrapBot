@@ -1,11 +1,8 @@
-// src/updateList.ts
-
 import axios, { AxiosResponse } from "axios";
-import dotenv from "dotenv";
-import { GraphqlParams, GraphqlQuery } from "./types";
+import env from "dotenv";
+import { GraphqlQuery, ScrapingResult } from "./types";
 
-// Load environment variables
-dotenv.config();
+env.config({ path: __dirname + "/../.env" });
 
 const query = `
 mutation ($mediaId: Int, $progress: Int) {
@@ -15,27 +12,33 @@ mutation ($mediaId: Int, $progress: Int) {
 }
 `;
 
-export function updateList({ mediaId, progress }: GraphqlParams): void {
-    if (mediaId == 0) return;
+export function updateList(results: ScrapingResult[]): void {
 
-    const config = {
-        method: "post",
-        url: "https://graphql.anilist.co",
-        headers: {
-            Authorization: `Bearer ${process.env.ANILIST_TOKEN}`,
-            "Content-Type": "application/json",
-        },
-        data: JSON.stringify({
-            query,
-            variables: { mediaId, progress },
-        } as GraphqlQuery),
-    };
+    for (const { manga, lastChapter } of results) {
+        const progress = Number(lastChapter);
+        const mediaId = manga.anilist_id;
 
-    axios(config)
-        .then((response: AxiosResponse) => {
-            console.log(JSON.stringify(response.data));
-        })
-        .catch(error => {
-            console.error(error.response?.data);
-        });
+        if (isNaN(progress) || mediaId === 0) continue;
+
+        const config = {
+            method: "post",
+            url: "https://graphql.anilist.co",
+            headers: {
+                Authorization: `Bearer ${process.env.ANILIST_TOKEN}`,
+                "Content-Type": "application/json",
+            },
+            data: JSON.stringify({
+                query,
+                variables: { mediaId, progress },
+            } as GraphqlQuery),
+        };
+
+        axios(config)
+            .then((response: AxiosResponse) => {
+                console.log(JSON.stringify(response.data));
+            })
+            .catch(error => {
+                console.error(error.response?.data);
+            });
+    }
 }
