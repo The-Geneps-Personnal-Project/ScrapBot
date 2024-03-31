@@ -1,9 +1,12 @@
 import { Client, IntentsBitField, EmbedBuilder, TextChannel } from "discord.js";
+import env from "dotenv";
+import { CronJob } from "cron";
+
 import { scrapeSiteInfo } from "./scraping";
 import { ScrapingResult, MangaInfo, ScrapingError } from "./types";
 import { getMangasInfo, setMangasInfo } from "./files";
 import { execCommand } from "./process";
-import env from "dotenv";
+import { updateList } from "./graphql";
 
 env.config({ path: __dirname + "/../.env" });
 
@@ -55,6 +58,7 @@ async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel)
     if (result && result.length > 0) {
         sendUpdateMessages(result, UpChannel);
         setMangasInfo(result);
+        updateList(result);
     } else {
         UpChannel.send("No new chapters found.");
     }
@@ -80,8 +84,12 @@ client.on("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     const channels = await setupChannels();
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
-    await setUpRepo(channels[0]);
-    await initiateScraping(channels[0], channels[1]);
+    const crontab = new CronJob("0 21 * * *", async () => {
+        await setUpRepo(channels[0]);
+        await initiateScraping(channels[0], channels[1]);
+    });
+
+    if (!crontab.running) crontab.start();
 });
 
 client.login(process.env.token);
