@@ -1,0 +1,46 @@
+{
+    "sites": [
+        {
+            "site": "neatmangas",
+            "url": "https://neatmangas.com/manga/",
+            "chapter_url": "/chapter-",
+            "selector": "[id^=\"manga-item-\"] > div > ul > li:first-child > a"
+        },
+        {
+            "site": "",
+            "url": "",
+            "chapter_url": "",
+        "selector": ""
+        },
+        {
+            "site": "",
+            "url": "",
+            "chapter_url": "",
+            "selector": ""
+        },
+        {
+            "site": "",
+            "url": "",
+            "chapter_url": "",
+            "selector": ""
+        },
+        {
+            "site": "",
+            "url": "",
+            "chapter_url": "",
+            "selector": ""
+        },
+        {
+            "site": "",
+            "url": "",
+            "chapter_url": "",
+            "selector": ""
+        },
+        {
+            "site": "",
+            "url": "",
+            "chapter_url": "",
+            "selector": ""
+        }
+    ]
+}
