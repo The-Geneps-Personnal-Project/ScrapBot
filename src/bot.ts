@@ -5,7 +5,7 @@ import { CronJob } from "cron";
 import { scrapeSiteInfo } from "./scraping";
 import { ScrapingResult, MangaInfo, ScrapingError } from "./types";
 import { getMangasInfo, setMangasInfo } from "./files";
-import { execCommand } from "./process";
+import { pullCommand, pushCommand, cleanChrome } from "./process";
 import { updateList } from "./graphql";
 
 env.config({ path: __dirname + "/../.env" });
@@ -26,7 +26,7 @@ async function setupChannels(): Promise<TextChannel[]> {
 }
 
 async function setUpRepo(channels: TextChannel) {
-    await execCommand("git pull").then(() => {
+    await pullCommand().then(() => {
         channels.bulkDelete(100);
     });
 }
@@ -56,9 +56,9 @@ async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel)
     const [result, errors] = await scrapeSiteInfo(mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, ErrChannel);
     if (result && result.length > 0) {
-        sendUpdateMessages(result, UpChannel);
+        await sendUpdateMessages(result, UpChannel);
         setMangasInfo(result);
-        updateList(result);
+        await updateList(result);
     } else {
         UpChannel.send("No new chapters found.");
     }
@@ -84,9 +84,11 @@ client.on("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     const channels = await setupChannels();
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
-    const crontab = new CronJob("0 21 * * *", async () => {
+    const crontab = new CronJob("0 20 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
         await setUpRepo(channels[0]);
         await initiateScraping(channels[0], channels[1]);
+        await pushCommand(await getBackup(channels[2]));
+        await cleanChrome();
     });
 
     if (!crontab.running) crontab.start();
