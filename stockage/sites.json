@@ -7,40 +7,34 @@
             "selector": "[id^=\"manga-item-\"] > div > ul > li:first-child > a"
         },
         {
-            "site": "",
-            "url": "",
-            "chapter_url": "",
-        "selector": ""
+            "site": "mangascan",
+            "url": "https://mangascan-fr.com/manga/",
+            "chapter_url": "/",
+            "selector": "body > div.wrapper > div > div:nth-child(1) > div > div:nth-child(8) > div > ul > li:nth-child(1) > h5 > em"
         },
         {
-            "site": "",
-            "url": "",
-            "chapter_url": "",
-            "selector": ""
+            "site": "asura-scans",
+            "url": "https://asura-scans.com/manga/",
+            "chapter_url": "-chapter-",
+            "selector": "#chapterlist > ul > li:nth-child(1) > div > div > a > span.chapternum"
         },
         {
-            "site": "",
-            "url": "",
-            "chapter_url": "",
-            "selector": ""
+            "site": "neatmangabis",
+            "url": "https://neatmangas.com/manga/",
+            "chapter_url": "/chapter-",
+            "selector": "#tab-chapter-listing > div.page-content-listing.single-page > div > ul > li:nth-child(1) > a"
         },
         {
-            "site": "",
-            "url": "",
-            "chapter_url": "",
-            "selector": ""
+            "site": "topmanhua",
+            "url": "https://topmanhua.com/manhua/",
+            "chapter_url": "/chapter-",
+            "selector": "body > div.wrap > div > div.site-content > div > div.c-page-content.style-1 > div > div > div > div.main-col.col-md-8.col-sm-8 > div > div.c-page > div > div.page-content-listing.single-page > div > ul > li:nth-child(1) > a"
         },
         {
-            "site": "",
-            "url": "",
-            "chapter_url": "",
-            "selector": ""
-        },
-        {
-            "site": "",
-            "url": "",
-            "chapter_url": "",
-            "selector": ""
+            "site": "mangamonks",
+            "url": "https://mangamonks.com/manga/",
+            "chapter_url": "/",
+            "selector": "#chapter0 > div > ul > li:nth-child(1) > a > span.chapter-number"
         }
     ]
 }
