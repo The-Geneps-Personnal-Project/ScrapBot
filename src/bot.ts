@@ -8,10 +8,10 @@ import { getMangasInfo, setMangasInfo } from "./files";
 import { pullCommand, pushCommand, cleanChrome } from "./process";
 import { updateList } from "./graphql";
 
-env.config();
+env.config({ path: __dirname + "/../.env" });
 
 async function setupChannels(): Promise<TextChannel[]> {
-    const ids = [process.env.update_chan, process.env.error_chan, process.env.backup_chan];
+    const ids = [process.env.test_update, process.env.test_error, process.env.test_backup];
     const channels = await Promise.all(
         ids.map(async id => {
             try {
@@ -33,7 +33,7 @@ async function setUpRepo(channels: TextChannel) {
 
 async function getBackup(channels: TextChannel): Promise<Number> {
     const lastmessage = await channels.messages.fetch({ limit: 1 });
-    return Number(lastmessage.first()?.embeds[0].title?.split(" ").filter(Number)[0]);
+    return Number(lastmessage.first()?.embeds[0].data.title?.split(" ").filter(Number)[0]);
 }
 
 async function sendUpdateMessages(ResultInfos: ScrapingResult[], channel: TextChannel) {
@@ -84,11 +84,11 @@ client.on("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     const channels = await setupChannels();
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
-    const crontab = new CronJob("20 21 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
+    const crontab = new CronJob("0 20 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
         await setUpRepo(channels[0]);
         await initiateScraping(channels[0], channels[1]);
         await pushCommand(await getBackup(channels[2]));
-        await cleanChrome();
+        //await cleanChrome();
     });
 
     if (!crontab.running) crontab.start();
