@@ -12,7 +12,7 @@ mutation ($mediaId: Int, $progress: Int) {
 }
 `;
 
-export function updateList(results: ScrapingResult[]): void {
+export async function updateList(results: ScrapingResult[]): Promise<void> {
 
     for (const { manga, lastChapter } of results) {
         const progress = Number(lastChapter);
@@ -33,7 +33,7 @@ export function updateList(results: ScrapingResult[]): void {
             } as GraphqlQuery),
         };
 
-        axios(config)
+        await axios(config)
             .then((response: AxiosResponse) => {
                 console.log(JSON.stringify(response.data));
             })
