@@ -1,0 +1,7 @@
+{
+	"uid": "scrap",
+	"append": false,
+	"watch": false,
+	"script": "/dist/bot.js",
+	"sourceDir": "/home/pi/ScrapTS"
+}

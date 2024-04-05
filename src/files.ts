@@ -29,7 +29,7 @@ export function getMangasInfo(): MangaInfo[] {
             chapter: string;
             alert: boolean;
         }>;
-    } = readJSONFile("./stockage/mangas_test.json");
+    } = readJSONFile("./stockage/mangas.json");
 
     const mangasInfo: MangaInfo[] = mangasData.data.map(manga => {
         const sites: SiteInfo[] = manga.sites.map(siteName => {
@@ -75,7 +75,7 @@ export function setMangasInfo(results: ScrapingResult[]): void {
     };
 
     try {
-        fs.writeFileSync("./stockage/mangas_test.json", JSON.stringify(mangasToWrite, null, 4));
+        fs.writeFileSync("./stockage/mangas.json", JSON.stringify(mangasToWrite, null, 4));
     } catch (error) {
         console.error(`Failed to write to mangas.json:`, error);
     }
