@@ -11,7 +11,7 @@ import { updateList } from "./graphql";
 env.config({ path: __dirname + "/../.env" });
 
 async function setupChannels(): Promise<TextChannel[]> {
-    const ids = [process.env.test_update, process.env.test_error, process.env.test_backup];
+    const ids = [process.env.update_chan, process.env.error_chan, process.env.backup_chan];
     const channels = await Promise.all(
         ids.map(async id => {
             try {
