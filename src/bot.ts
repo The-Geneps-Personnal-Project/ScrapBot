@@ -84,7 +84,7 @@ client.on("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     const channels = await setupChannels();
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
-    const crontab = new CronJob("0 20 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
+    const crontab = new CronJob("51 21 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
         await setUpRepo(channels[0]);
         await initiateScraping(channels[0], channels[1]);
         await pushCommand(await getBackup(channels[2]));
