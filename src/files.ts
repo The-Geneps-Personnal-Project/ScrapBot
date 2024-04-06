@@ -41,6 +41,7 @@ export function getMangasInfo(): MangaInfo[] {
             const modifiedSiteInfo = {
                 ...siteInfo,
                 url: siteInfo.url + replaceURL(manga.name),
+                chapter_url: siteInfo.chapter_url + replaceURL(manga.name),
             };
 
             return modifiedSiteInfo;
