@@ -1,83 +1,76 @@
-import fs from "fs";
 import { MangaInfo, ScrapingResult, SiteInfo } from "./types";
+import db from "sqlite3";
+import {Database, open} from "sqlite";
 
 function replaceURL(url: string): string {
     const withoutSpaces = url.replace(/ /g, "-");
     return withoutSpaces.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase();
 }
 
-function readJSONFile<T>(filePath: string): T {
+async function openDatabase(): Promise<Database> {
+    return await open({
+        filename: `${process.cwd()}/stockage/database.sqlite3`,
+        driver: db.Database,
+    });
+}
+
+async function readDatabase<T>(sql: string, params?: any[]): Promise<T> {
+    const database = await openDatabase();
     try {
-        const fileContent = fs.readFileSync(filePath, "utf8");
-        return JSON.parse(fileContent) as T;
+        const result = await database.all(sql, params);
+        return result as unknown as T;
     } catch (error) {
-        console.error(`Failed to read ${filePath}:`, error);
+        console.error('Failed to execute query:', error);
         throw error;
+    } finally {
+        await database.close();
     }
 }
 
-export function getMangasInfo(): MangaInfo[] {
-    const sitesData: {
-        sites: SiteInfo[];
-    } = readJSONFile("./stockage/sites.json");
+export async function getMangasInfo(): Promise<MangaInfo[]> {
+    const mangas: MangaInfo[] = 
+      await readDatabase('SELECT * FROM mangas');
 
-    const mangasData: {
-        data: Array<{
-            sites: string[];
-            anilist_id: string;
-            name: string;
-            chapter: string;
-            alert: boolean;
-        }>;
-    } = readJSONFile("./stockage/mangas.json");
+    const mangasInfo: MangaInfo[] = await Promise.all(mangas.map(async (manga) => {
+        const sites: SiteInfo[] = await readDatabase(
+            `SELECT s.* FROM sites s
+            JOIN manga_sites ms ON s.id = ms.site_id
+            WHERE ms.manga_id = ?`,
+            [manga.id]
+        );
 
-    const mangasInfo: MangaInfo[] = mangasData.data.map(manga => {
-        const sites: SiteInfo[] = manga.sites.map(siteName => {
-            const siteInfo = sitesData.sites.find(site => site.site === siteName);
-            if (!siteInfo) {
-                throw new Error(`SiteInfo for ${siteName} not found.`);
-            }
-
-            const modifiedSiteInfo = {
-                ...siteInfo,
-                url: siteInfo.url + replaceURL(manga.name),
-                chapter_url: siteInfo.chapter_url + replaceURL(manga.name),
-            };
-
-            return modifiedSiteInfo;
-        });
+        const sitesInfo = sites.map(site => ({
+            ...site,
+            url: site.url + replaceURL(manga.name),
+            chapter_url: site.chapter_url + replaceURL(manga.name),
+        }));
 
         return {
-            sites,
-            anilist_id: Number(manga.anilist_id),
+            id: manga.id,
+            sites: sitesInfo,
+            anilist_id: manga.anilist_id,
             name: manga.name,
             chapter: manga.chapter,
             alert: manga.alert,
         };
-    });
+    }));
 
     return mangasInfo;
 }
 
-export function setMangasInfo(results: ScrapingResult[]): void {
-    const currentMangas = getMangasInfo();
+export async function setMangasInfo(results: ScrapingResult[]): Promise<void> {
+    const db = await openDatabase();
 
-    const updatedMangas = currentMangas.map(manga => {
-        const result = results.find(result => result.manga.name === manga.name);
-        const updatedManga = {
-            ...manga,
-            sites: manga.sites.map(site => site.site),
-        };
-        if (result) updatedManga.chapter = result.lastChapter;
-        return updatedManga;
-    });
-    const mangasToWrite = {
-        data: updatedMangas,
-    };
-
+    await db.exec('BEGIN TRANSACTION');
     try {
-        fs.writeFileSync("./stockage/mangas.json", JSON.stringify(mangasToWrite, null, 4));
+        for (const result of results) {
+            await db.run('UPDATE mangas SET chapter = ? WHERE name = ?', result.lastChapter, result.manga.name);
+        }
+        await db.exec('COMMIT');
     } catch (error) {
-        console.error(`Failed to write to mangas.json:`, error);
+        await db.exec('ROLLBACK');
+        console.error(`Failed to update mangas:`, error);
+        throw error;
     }
+    db.close();
 }

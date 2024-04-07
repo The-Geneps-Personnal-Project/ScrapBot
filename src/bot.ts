@@ -51,7 +51,7 @@ async function sendErrorMessage(ScrapInfos: ScrapingError[], channel: TextChanne
 }
 
 async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel, BackupChannel: TextChannel) {
-    const mangas: MangaInfo[] = getMangasInfo();
+    const mangas: MangaInfo[] = await getMangasInfo();
 
     const [result, errors] = await scrapeSiteInfo(mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, ErrChannel);
