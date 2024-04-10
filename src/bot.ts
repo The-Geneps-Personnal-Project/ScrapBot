@@ -39,7 +39,7 @@ async function getBackup(channels: TextChannel): Promise<Number> {
 async function sendUpdateMessages(ResultInfos: ScrapingResult[], channel: TextChannel) {
     for (const { manga, lastChapter, site } of ResultInfos) {
         await channel.send(
-            `${manga.name} : ${manga.chapter} -> ${lastChapter} at <${site.chapter_url + site.chapter_limiter + manga.chapter}>`
+            `${manga.name} : ${manga.chapter} -> ${lastChapter} at <${site.chapter_url + site.chapter_limiter + (+manga.chapter + 1)}>`
         );
     }
 }
