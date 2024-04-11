@@ -331,6 +331,13 @@
             "name": "Overgeared",
             "chapter": "226",
             "alert": true
-        }
+        },
+	{
+		"sites": ["neatmangas"],
+		"anilist_id": 162360,
+		"name": "Mr Zombie",
+		"chapter": "96",
+		"alert": true
+	}
     ]
 }
