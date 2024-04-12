@@ -74,7 +74,7 @@
             ],
             "anilist_id": 120966,
             "name": "Tale of a Scribe Who Retires to the Countryside",
-            "chapter": "200",
+            "chapter": "201",
             "alert": true
         },
         {
@@ -84,7 +84,7 @@
             ],
             "anilist_id": 123573,
             "name": "Trash of the Count's Family",
-            "chapter": "123",
+            "chapter": "124",
             "alert": true
         },
         {
@@ -233,7 +233,7 @@
             ],
             "anilist_id": 109957,
             "name": "Ranker Who Lives A Second Time",
-            "chapter": "167",
+            "chapter": "167.5",
             "alert": true
         },
         {
@@ -332,12 +332,14 @@
             "chapter": "226",
             "alert": true
         },
-	{
-		"sites": ["neatmangas"],
-		"anilist_id": 162360,
-		"name": "Mr Zombie",
-		"chapter": "96",
-		"alert": true
-	}
+        {
+            "sites": [
+                "neatmangabis"
+            ],
+            "anilist_id": 162360,
+            "name": "Mr Zombie",
+            "chapter": "98",
+            "alert": true
+        }
     ]
 }
