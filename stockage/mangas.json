@@ -15,7 +15,7 @@
                 "asura-scans"
             ],
             "anilist_id": 105393,
-            "name": "The Returner's Should Be Special",
+            "name": "Magician who reversing time",
             "chapter": "258",
             "alert": true
         },
@@ -74,7 +74,7 @@
             ],
             "anilist_id": 120966,
             "name": "Tale of a Scribe Who Retires to the Countryside",
-            "chapter": "201",
+            "chapter": "203",
             "alert": true
         },
         {
@@ -243,7 +243,7 @@
             ],
             "anilist_id": 85143,
             "name": "Tower Of God",
-            "chapter": "618",
+            "chapter": "619",
             "alert": true
         },
         {
@@ -339,6 +339,15 @@
             "anilist_id": 162360,
             "name": "Mr Zombie",
             "chapter": "98",
+            "alert": true
+        },
+        {
+            "sites": [
+                "neatmangabis"
+            ],
+            "anilist_id": 170291,
+            "name": "Moon Slayer",
+            "chapter": "39",
             "alert": true
         }
     ]
