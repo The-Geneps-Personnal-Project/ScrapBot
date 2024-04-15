@@ -16,7 +16,7 @@
             ],
             "anilist_id": 105393,
             "name": "The Returner's Should Be Special",
-            "chapter": "256",
+            "chapter": "258",
             "alert": true
         },
         {
@@ -25,7 +25,7 @@
             ],
             "anilist_id": 125636,
             "name": "The Max Level Hero Strikes Back",
-            "chapter": "159",
+            "chapter": "160",
             "alert": true
         },
         {
@@ -45,7 +45,7 @@
             ],
             "anilist_id": 116353,
             "name": "Magic Emperor",
-            "chapter": "531",
+            "chapter": "533",
             "alert": true
         },
         {
@@ -74,7 +74,7 @@
             ],
             "anilist_id": 120966,
             "name": "Tale of a Scribe Who Retires to the Countryside",
-            "chapter": "200",
+            "chapter": "201",
             "alert": true
         },
         {
@@ -84,7 +84,7 @@
             ],
             "anilist_id": 123573,
             "name": "Trash of the Count's Family",
-            "chapter": "123",
+            "chapter": "124",
             "alert": true
         },
         {
@@ -104,7 +104,7 @@
             ],
             "anilist_id": 138222,
             "name": "Leveling with the Gods",
-            "chapter": "110",
+            "chapter": "111",
             "alert": true
         },
         {
@@ -233,7 +233,7 @@
             ],
             "anilist_id": 109957,
             "name": "Ranker Who Lives A Second Time",
-            "chapter": "167",
+            "chapter": "167.5",
             "alert": true
         },
         {
@@ -243,7 +243,7 @@
             ],
             "anilist_id": 85143,
             "name": "Tower Of God",
-            "chapter": "617",
+            "chapter": "618",
             "alert": true
         },
         {
@@ -319,7 +319,7 @@
             ],
             "anilist_id": 144957,
             "name": "The World After The Fall",
-            "chapter": "121",
+            "chapter": "122",
             "alert": true
         },
         {
@@ -329,7 +329,16 @@
             ],
             "anilist_id": 117460,
             "name": "Overgeared",
-            "chapter": "226",
+            "chapter": "227",
+            "alert": true
+        },
+        {
+            "sites": [
+                "neatmangabis"
+            ],
+            "anilist_id": 162360,
+            "name": "Mr Zombie",
+            "chapter": "98",
             "alert": true
         }
     ]
