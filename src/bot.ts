@@ -50,7 +50,7 @@ async function sendErrorMessage(ScrapInfos: ScrapingError[], channel: TextChanne
     }
 }
 
-async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel) {
+async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel, BackupChannel: TextChannel) {
     const mangas: MangaInfo[] = getMangasInfo();
 
     const [result, errors] = await scrapeSiteInfo(mangas);
@@ -59,6 +59,7 @@ async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel)
         await sendUpdateMessages(result, UpChannel);
         setMangasInfo(result);
         await updateList(result);
+        await pushCommand(await getBackup(BackupChannel));
     } else {
         UpChannel.send("No new chapters found.");
     }
@@ -86,8 +87,7 @@ client.on("ready", async () => {
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
     const crontab = new CronJob("0 21 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
         await setUpRepo(channels[0]);
-        await initiateScraping(channels[0], channels[1]);
-        await pushCommand(await getBackup(channels[2]));
+        await initiateScraping(channels[0], channels[1], channels[2]);
         //await cleanChrome();
     });
 
