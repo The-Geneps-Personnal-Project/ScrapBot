@@ -14,11 +14,11 @@ async function openDatabase(): Promise<Database> {
     });
 }
 
-async function readDatabase<T>(sql: string, params?: any[]): Promise<T> {
+async function readDatabase<T>(sql: string, params?: Number[]): Promise<T> {
     const database = await openDatabase();
     try {
         const result = await database.all(sql, params);
-        return result as unknown as T;
+        return result as T;
     } catch (error) {
         console.error('Failed to execute query:', error);
         throw error;
