@@ -3,7 +3,7 @@ export interface MangaInfo {
     sites: SiteInfo[];
     anilist_id: Number;
     alert?: Number;
-    chapter?: string;
+    chapter: string;
     name: string;
 }
 
