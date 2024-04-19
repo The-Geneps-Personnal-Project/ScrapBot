@@ -1,11 +1,9 @@
 import { Client, IntentsBitField, EmbedBuilder, TextChannel } from "discord.js";
 import env from "dotenv";
 import { CronJob } from "cron";
-
 import { scrapeSiteInfo } from "./scraping";
 import { ScrapingResult, MangaInfo, ScrapingError } from "./types";
 import { getMangasInfo, setMangasInfo } from "./files";
-import { pullCommand, pushCommand, cleanChrome } from "./process";
 import { updateList } from "./graphql";
 
 env.config({ path: __dirname + "/../.env" });
@@ -23,12 +21,6 @@ async function setupChannels(): Promise<TextChannel[]> {
         })
     );
     return channels.filter(channel => channel !== undefined) as TextChannel[];
-}
-
-async function setUpRepo(channels: TextChannel) {
-    await pullCommand().then(() => {
-        channels.bulkDelete(100);
-    });
 }
 
 async function getBackup(channels: TextChannel): Promise<Number> {
@@ -50,7 +42,7 @@ async function sendErrorMessage(ScrapInfos: ScrapingError[], channel: TextChanne
     }
 }
 
-async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel, BackupChannel: TextChannel) {
+async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel) {
     const mangas: MangaInfo[] = await getMangasInfo();
 
     const [result, errors] = await scrapeSiteInfo(mangas);
@@ -59,7 +51,6 @@ async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel,
         await sendUpdateMessages(result, UpChannel);
         setMangasInfo(result);
         await updateList(result);
-        await pushCommand(await getBackup(BackupChannel));
     } else {
         UpChannel.send("No new chapters found.");
     }
@@ -86,9 +77,8 @@ client.on("ready", async () => {
     const channels = await setupChannels();
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
     const crontab = new CronJob("0 21 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
-        await setUpRepo(channels[0]);
-        await initiateScraping(channels[0], channels[1], channels[2]);
-        //await cleanChrome();
+        await channels[0].bulkDelete(100);
+        await initiateScraping(channels[0], channels[1]);
     });
 
     if (!crontab.running) crontab.start();
