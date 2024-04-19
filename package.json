@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "start": "node dist/bot.js",
+    "db": "sqlite3 stockage/database.sqlite3 < database.sql",
+    "seed": "node seeder.js",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\""
@@ -23,6 +25,8 @@
     "puppeteer": "^22.6.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "typescript": "^5.4.3"
   },
   "devDependencies": {

@@ -1,7 +1,8 @@
 export interface MangaInfo {
+    id: Number
     sites: SiteInfo[];
     anilist_id: Number;
-    alert?: boolean;
+    alert?: Number;
     chapter: string;
     name: string;
 }
