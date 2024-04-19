@@ -18,7 +18,6 @@ async function setupDatabase() {
     await db.exec('BEGIN TRANSACTION');
 
     try {
-        // Insert sites
         for (const site of siteData.sites) {
             const { site: siteName, url, chapter_url, chapter_limiter, selector } = site;
             await db.run(`
@@ -27,6 +26,8 @@ async function setupDatabase() {
                 siteName, url, chapter_url, chapter_limiter, selector
             );
         }
+
+        await db.exec('COMMIT');
 
         for (const manga of mangaData.data) {
             const { anilist_id, name, chapter, alert, sites: mangaSites } = manga;
