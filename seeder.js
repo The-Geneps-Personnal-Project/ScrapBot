@@ -21,7 +21,6 @@ async function setupDatabase() {
         // Insert sites
         for (const site of siteData.sites) {
             const { site: siteName, url, chapter_url, chapter_limiter, selector } = site;
-            console.log(siteName, url, chapter_url, chapter_limiter, selector)
             await db.run(`
                 INSERT INTO sites (site, url, chapter_url, chapter_limiter, selector)
                 VALUES (?, ?, ?, ?, ?)`,
