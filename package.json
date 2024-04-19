@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "start": "node dist/bot.js",
+    "db": "sqlite3 stockage/database.sqlite3 < database.sql",
+    "seed": "node seeder.js",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\""
