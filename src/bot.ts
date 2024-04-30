@@ -72,6 +72,24 @@ client.on("messageDeleteBulk", async messages => {
     backupchan.send({ embeds: [embed] });
 });
 
+client.on("messageCreate", async message => {
+    if (message.author.bot) return;
+
+    const args = message.content.split(" ");
+
+    if (args[0] === "!add_site") {
+        if (args.length !== 4) {
+            message.reply("Invalid number of arguments.");
+            return;
+        }
+
+        const url = args[1];
+        const name = url.split("/")[2];
+
+        message.reply(`Added ${name} to the list.`);
+    }
+})
+
 client.on("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     const channels = await setupChannels();
