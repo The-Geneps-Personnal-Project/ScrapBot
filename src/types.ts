@@ -12,7 +12,6 @@ export interface SiteInfo {
     url: string;
     chapter_url: string;
     chapter_limiter: string;
-    selector: string;
 }
 
 export interface ScrapingResult {

@@ -1,6 +1,7 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "./types";
+import { getChapterElement } from "./seed";
 
 puppeteer.use(StealthPlugin());
 
@@ -28,12 +29,8 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
             const page = await browser.newPage();
             try {
                 await page.goto(site.url, { waitUntil: "domcontentloaded" });
-                await page.waitForSelector(site.selector);
 
-                const lastChapterText = await page.evaluate((selector: string) => {
-                    const content = document.querySelector(selector);
-                    return content ? content.textContent || (content as HTMLElement).innerText : undefined;
-                }, site.selector);
+                const lastChapterText = await getChapterElement(page)
 
                 const lastChapterTextMatch = lastChapterText?.match(/\d+(\.\d+)?/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0]) : NaN;
