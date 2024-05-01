@@ -78,15 +78,12 @@ client.on("messageCreate", async message => {
     const args = message.content.split(" ");
 
     if (args[0] === "!add_site") {
-        if (args.length !== 4) {
-            message.reply("Invalid number of arguments.");
+        if (args.length !== 2) {
+            message.reply("Help: !add_site <url>");
             return;
         }
 
-        const url = args[1];
-        const name = url.split("/")[2];
-
-        message.reply(`Added ${name} to the list.`);
+        message.reply(`Added ${args[1].split("/")[2]} to the list.`);
     }
 })
 
