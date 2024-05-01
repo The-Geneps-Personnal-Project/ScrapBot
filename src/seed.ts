@@ -38,8 +38,8 @@ export async function addSite(url: string) {
 
     await page.goto(link, { waitUntil: "domcontentloaded" });
 
-    const pathSegments = link?.split('/').filter(el => el.length > 0)
-    pathSegments?.pop()
+    const pathSegments = link?.split('/').filter(el => el.length > 0).slice(0, -1);
+    //TODO: Add a / after http that has been removed because of the filter
 
     const list_url = pathSegments?.join("/")
     const chapter_url = await getChapterElement(page)
