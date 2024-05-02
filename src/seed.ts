@@ -1,5 +1,6 @@
 import puppeteer, {Page} from "puppeteer";
 import { addSite } from "./files";
+import { SiteInfo } from "./types";
 
 /**
  * @description Get the chapter limiter from the url
@@ -86,8 +87,7 @@ export async function createSite(url: string) {
             const chapterUrl = await getChapterElement(page);
             const chapterLimiter = getChapterLimiter(chapterUrl);
 
-            // Can't declare as SiteInfo because of the missing id created by sqlite
-            const siteInfo = {
+            const siteInfo: SiteInfo = {
                 site: siteName,
                 url: listUrl,
                 chapter_url: normalizeURL(chapterUrl, 2),
