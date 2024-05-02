@@ -78,13 +78,21 @@ client.on("messageCreate", async message => {
     const args = message.content.split(" ");
 
     if (args[0] === "!add_site") {
-        if (args.length !== 2) {
-            message.reply("Help: !add_site <url>");
-            return;
-        }
-
+        if (args.length !== 2) message.reply("Help: !add_site <url>");
         message.reply(`Added ${args[1].split("/")[2]} to the list.`);
     }
+
+    if (args[0] === "!remove_site") {
+        if (args.length !== 2) message.reply("Help: !remove_site <url>");
+        message.reply(`Removed ${args[1].split("/")[2]} from the list.`);
+    }
+
+    if (args[0] === "!remove_manga") {
+        if (args.length !== 2) message.reply("Help: !remove_manga <name>");
+        message.reply(`Removed ${args[1]} from the list.`);
+    }
+
+    // TODO: Add manga
 })
 
 client.on("ready", async () => {

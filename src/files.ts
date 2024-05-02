@@ -36,7 +36,7 @@ export async function getMangasInfo(): Promise<MangaInfo[]> {
             `SELECT s.* FROM sites s
             JOIN manga_sites ms ON s.id = ms.site_id
             WHERE ms.manga_id = ?`,
-            [manga.id]
+            [manga.id || 0]
         );
 
         const sitesInfo = sites.map(site => ({
@@ -70,6 +70,88 @@ export async function setMangasInfo(results: ScrapingResult[]): Promise<void> {
     } catch (error) {
         await db.exec('ROLLBACK');
         console.error(`Failed to update mangas:`, error);
+        throw error;
+    }
+    db.close();
+}
+
+export async function addManga(manga: MangaInfo): Promise<void> {
+    const db = await openDatabase();
+
+    await db.exec('BEGIN TRANSACTION');
+    try {
+        const { lastID } = await db.run(
+            'INSERT INTO mangas (anilist_id, name, chapter, alert) VALUES (?, ?, ?, ?)',
+            manga.anilist_id,
+            manga.name,
+            manga.chapter,
+            manga.alert
+        );
+
+        for (const site of manga.sites) {
+            await db.run(
+                'INSERT INTO manga_sites (manga_id, site_id) VALUES (?, ?)',
+                lastID,
+                site.id
+            );
+        }
+
+        await db.exec('COMMIT');
+    } catch (error) {
+        await db.exec('ROLLBACK');
+        console.error(`Failed to add manga:`, error);
+        throw error;
+    }
+    db.close();
+}
+
+export async function addSite(site: SiteInfo): Promise<void> {
+    const db = await openDatabase();
+
+    await db.exec('BEGIN TRANSACTION');
+    try {
+        await db.run(
+            'INSERT INTO sites (site, url, chapter_url, chapter_limiter) VALUES (?, ?, ?, ?)',
+            site.site,
+            site.url,
+            site.chapter_url,
+            site.chapter_limiter
+        );
+
+        await db.exec('COMMIT');
+    } catch (error) {
+        await db.exec('ROLLBACK');
+        console.error(`Failed to add site:`, error);
+        throw error;
+    }
+    db.close();
+}
+
+export async function removeManga(name: string): Promise<void> {
+    const db = await openDatabase();
+
+    await db.exec('BEGIN TRANSACTION');
+    try {
+        await db.run('DELETE FROM mangas WHERE name = ?', name);
+        await db.exec('COMMIT');
+    } catch (error) {
+        await db.exec('ROLLBACK');
+        console.error(`Failed to remove manga:`, error);
+        throw error;
+    }
+    db.close();
+}
+
+export async function removeSite(site: string): Promise<void> {
+    const db = await openDatabase();
+
+    await db.exec('BEGIN TRANSACTION');
+    try {
+        await db.run('DELETE FROM sites WHERE site = ?', site);
+        await db.exec('COMMIT');
+    } catch (error) {
+        await db.exec('ROLLBACK');
+        console.error(`Failed to remove site:`, error);
         throw error;
     }
     db.close();
