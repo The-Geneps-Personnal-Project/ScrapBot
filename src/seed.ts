@@ -1,65 +1,104 @@
 import puppeteer, {Page} from "puppeteer";
-import { SiteInfo } from "./types";
+import { addSite } from "./files";
 
-export async function getChapterElement(page: Page): Promise<string | null> {
+/**
+ * @description Get the chapter limiter from the url
+ * @param url The url to get the chapter limiter from
+ * @returns 
+ */
+function getChapterLimiter(url: string): string {
+    const index = url.indexOf("chapter");
+
+    if (index === -1) return ""
+
+    const before = index > 0 ? url.charAt(index - 1) : null;
+    const after = index + "chapter".length < url.length ? url.charAt(index + "chapter".length) : null;
+
+    return before + "chapter" + after
+}
+
+/**
+ * @description Normalize the URL by removing the last parts
+ * @param url - URL to normalize
+ * @param toRemove - Number of parts to remove from the url (From the end)
+ * @returns 
+ */
+function normalizeURL(url: string, toRemove : number = 1): string {
+    const normalized_url = url.endsWith("/") ? url.slice(0, -1) : url;
+    const parts = normalized_url.split("/")
+    
+    toRemove = Math.min(toRemove, parts.length - 1)
+
+    parts.splice(-toRemove, toRemove)
+    
+    return parts.join("/") + (parts.length === 2 ? "/" : "")
+}
+
+/**
+ * @description Get the chapter element from the page (The first link containing "chapter" in the text)
+ * @param page - The page to get the chapter element from
+ * @returns - The href of the chapter element
+ */
+export async function getChapterElement(page: Page): Promise<string> {
     const href = await page.evaluate(() => {
         const links = Array.from(document.querySelectorAll('a'));
         const targetLink = links.find(link => link.textContent?.toLowerCase().includes("chapter"));
-        return targetLink ? targetLink.href : null;
+        return targetLink ? targetLink.href : "";
     });
-    console.log(href)
-    return href;
+    if (!href) return ""
+    return href
 }
 
+/**
+ * @description Get a manga from the main page given as parameter
+ * @param page - The page to get the element from
+ * @param selector - The selector to get the element from
+ * @returns - The href of the element
+ */
 export async function getElement(page: Page , selector: string): Promise<string> {
     const link = await page.evaluate((selector: string) => {
         const links = Array.from(document.querySelectorAll(selector));
 
         const filteredLinks = links.filter((link) => {return link.querySelector("img")});
-        return (filteredLinks[3] as HTMLAnchorElement).href;
+        return (filteredLinks[3] as HTMLAnchorElement).href; // Return the 3rd element to be sure to have a manga and not decorative image
     }, selector);
 
     return link
 }
 
-export async function addSite(url: string) {
+export async function createSite(url: string) {
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
-        //executablePath: "/usr/bin/chromium-browser", // Remove comment before pushing to prod
+        executablePath: "/usr/bin/chromium-browser",
     });
 
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    try {
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: "domcontentloaded" });
 
-    const link = await getElement(page, "a:has(img)")
-    
-    const site_name = url.split("/")[2]
+        const mainLink = await getElement(page, "a:has(img)");
+        const siteName = new URL(url).hostname;
 
-    await page.goto(link, { waitUntil: "domcontentloaded" });
+        if (mainLink) {
+            await page.goto(mainLink, { waitUntil: "domcontentloaded" });
+            const listUrl = normalizeURL(mainLink);
+            const chapterUrl = await getChapterElement(page);
+            const chapterLimiter = getChapterLimiter(chapterUrl);
 
-    const pathSegments = link?.split('/').filter(el => el.length > 0).slice(0, -1);
-    //TODO: Add a / after http that has been removed because of the filter
-
-    const list_url = pathSegments?.join("/")
-    const chapter_url = await getChapterElement(page)
-
-    // Get -chapter or /chapter depending on the site
-    // for exemple:
-    // https://mangadex.org/manga/exemple-chapter-150
-    // https://mangadex.org/manga/exemple/chapter-150
-    // https://mangadex.org/manga/exemple/chapter/150
-    // TO EDIT IF: Need of the chapter behind or only the character before chapter
-    const chapter_limiter = chapter_url?.split("chapter")[0].split("").pop();
-
-    const site = {
-        site: site_name,
-        url: list_url,
-        chapter_url: chapter_url,
-        chapter_limiter: chapter_limiter,
-    } as SiteInfo
-
-    // TODO: Implement function to add site in database giving site as parameter
-
-    await browser.close();
+            // Can't declare as SiteInfo because of the missing id created by sqlite
+            const siteInfo = {
+                site: siteName,
+                url: listUrl,
+                chapter_url: normalizeURL(chapterUrl, 2),
+                chapter_limiter: chapterLimiter,
+            };
+            console.log("Creating site:", siteInfo);
+            await addSite(siteInfo);
+        }
+    } catch (error) {
+        console.error("Failed to create site:", error);
+    } finally {
+        await browser.close();
+    }
 }
