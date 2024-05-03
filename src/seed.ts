@@ -1,6 +1,6 @@
 import puppeteer, {Page} from "puppeteer";
 import { addSite } from "./files";
-import { SiteInfo } from "./types";
+import { MangaInfo, SiteInfo } from "./types";
 
 /**
  * @description Get the chapter limiter from the url
@@ -67,19 +67,21 @@ export async function getElement(page: Page , selector: string): Promise<string>
     return link
 }
 
-export async function createSite(url: string) {
+export async function createSite(url: string): Promise<SiteInfo> {
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
         executablePath: "/usr/bin/chromium-browser",
     });
 
+    let siteInfo: SiteInfo = {} as SiteInfo;
+
     try {
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: "domcontentloaded" });
 
         const mainLink = await getElement(page, "a:has(img)");
-        const siteName = new URL(url).hostname;
+        const siteName = new URL(url).hostname.split(".")[0];
 
         if (mainLink) {
             await page.goto(mainLink, { waitUntil: "domcontentloaded" });
@@ -87,10 +89,10 @@ export async function createSite(url: string) {
             const chapterUrl = await getChapterElement(page);
             const chapterLimiter = getChapterLimiter(chapterUrl);
 
-            const siteInfo: SiteInfo = {
+            siteInfo = {
                 site: siteName,
-                url: listUrl,
-                chapter_url: normalizeURL(chapterUrl, 2),
+                url: listUrl + '/',
+                chapter_url: normalizeURL(chapterUrl, 2) + '/',
                 chapter_limiter: chapterLimiter,
             };
             console.log("Creating site:", siteInfo);
@@ -100,5 +102,6 @@ export async function createSite(url: string) {
         console.error("Failed to create site:", error);
     } finally {
         await browser.close();
+        return siteInfo;
     }
 }
