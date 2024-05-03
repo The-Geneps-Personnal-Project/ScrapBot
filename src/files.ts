@@ -14,7 +14,7 @@ async function openDatabase(): Promise<Database> {
     });
 }
 
-async function readDatabase<T>(sql: string, params?: Number[]): Promise<T> {
+async function readDatabase<T>(sql: string, params?: Number[] | string[]): Promise<T> {
     const database = await openDatabase();
     try {
         const result = await database.all(sql, params);
@@ -25,6 +25,20 @@ async function readDatabase<T>(sql: string, params?: Number[]): Promise<T> {
     } finally {
         await database.close();
     }
+}
+
+export async function getSiteFromName(name: string): Promise<SiteInfo[]> {
+    const site: SiteInfo[] = 
+      await readDatabase('SELECT * FROM sites WHERE site = ?', [name]);
+
+    return site;
+}
+
+export async function getMangaFromName(name: string): Promise<MangaInfo> {
+    const manga: MangaInfo = 
+      await readDatabase('SELECT * FROM mangas WHERE name = ?', [name]);
+
+    return manga;
 }
 
 export async function getMangasInfo(): Promise<MangaInfo[]> {
@@ -85,7 +99,7 @@ export async function addManga(manga: MangaInfo): Promise<void> {
             manga.anilist_id,
             manga.name,
             manga.chapter,
-            manga.alert
+            true
         );
 
         for (const site of manga.sites) {
@@ -152,6 +166,42 @@ export async function removeSite(site: string): Promise<void> {
     } catch (error) {
         await db.exec('ROLLBACK');
         console.error(`Failed to remove site:`, error);
+        throw error;
+    }
+    db.close();
+}
+
+export async function removeSiteFromManga(site: SiteInfo, manga: MangaInfo): Promise<void> {
+    const db = await openDatabase();
+
+    await db.exec('BEGIN TRANSACTION');
+    try {
+        await db.run('DELETE FROM manga_sites WHERE manga_id = ? AND site_id = ?', manga.id, site.id);
+        await db.exec('COMMIT');
+    } catch (error) {
+        await db.exec('ROLLBACK');
+        console.error(`Failed to remove site from manga:`, error);
+        throw error;
+    }
+    db.close();
+}
+
+export async function addSiteToManga(manga: MangaInfo, site: SiteInfo): Promise<void> {
+    const db = await openDatabase();
+
+    await db.exec('BEGIN TRANSACTION');
+    try {        console.log(manga)
+
+        await db.run(
+            'INSERT INTO manga_sites (manga_id, site_id) VALUES (?, ?)',
+            manga.id,
+            site.id
+        );
+
+        await db.exec('COMMIT');
+    } catch (error) {
+        await db.exec('ROLLBACK');
+        console.error(`Failed to add site to manga:`, error);
         throw error;
     }
     db.close();

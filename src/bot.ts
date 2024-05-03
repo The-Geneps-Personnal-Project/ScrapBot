@@ -1,10 +1,11 @@
-import { Client, IntentsBitField, EmbedBuilder, TextChannel } from "discord.js";
+import { Client, IntentsBitField, EmbedBuilder, TextChannel, GatewayIntentBits } from "discord.js";
 import env from "dotenv";
 import { CronJob } from "cron";
 import { scrapeSiteInfo } from "./scraping";
-import { ScrapingResult, MangaInfo, ScrapingError } from "./types";
-import { getMangasInfo, setMangasInfo } from "./files";
+import { ScrapingResult, MangaInfo, ScrapingError, SiteInfo } from "./types";
+import { getMangasInfo, removeManga, removeSite, setMangasInfo, getSiteFromName, addManga, getMangaFromName, removeSiteFromManga, addSiteToManga } from "./files";
 import { updateList } from "./graphql";
+import { createSite } from "./seed";
 
 env.config({ path: __dirname + "/../.env" });
 
@@ -56,7 +57,7 @@ async function initiateScraping(UpChannel: TextChannel, ErrChannel: TextChannel)
     }
 }
 
-const client = new Client({ intents: [IntentsBitField.Flags.GuildMessages] });
+const client = new Client({ intents: [IntentsBitField.Flags.GuildMessages, GatewayIntentBits.MessageContent] });
 
 client.on("messageDeleteBulk", async messages => {
     const backupchan = client.channels.cache.get(process.env.backup_chan as string) as TextChannel;
@@ -79,20 +80,53 @@ client.on("messageCreate", async message => {
 
     if (args[0] === "!add_site") {
         if (args.length !== 2) message.reply("Help: !add_site <url>");
+        await createSite(args[1]);
         message.reply(`Added ${args[1].split("/")[2]} to the list.`);
     }
 
     if (args[0] === "!remove_site") {
         if (args.length !== 2) message.reply("Help: !remove_site <url>");
+        removeSite(args[1]);
         message.reply(`Removed ${args[1].split("/")[2]} from the list.`);
     }
 
     if (args[0] === "!remove_manga") {
         if (args.length !== 2) message.reply("Help: !remove_manga <name>");
+        removeManga(args[1]);
         message.reply(`Removed ${args[1]} from the list.`);
     }
 
-    // TODO: Add manga
+    if (args[0] === "!add_manga") {
+        // Needed args: id, last_chapter, site (More can be added later), name (inn this specific order)
+        try {
+            const manga: MangaInfo = {
+                anilist_id: Number(args[1]),
+                chapter: args[2],
+                name: args.slice(4).join(" "),
+                sites: await getSiteFromName(args[3]),
+            };
+            await addManga(manga);
+        } catch {
+            message.reply("Failed to add new manga")
+        }
+    }
+
+    if (args[0] === "!remove_site_manga") {
+        if (args.length !== 3) message.reply("Not enought argument")
+        // Needed args: site_name, manga_name
+        const site = await getSiteFromName(args[1]);
+        const manga = await getMangaFromName(args.slice(2).join(""));
+
+        await removeSiteFromManga(site[0], manga);
+    }
+
+    if (args[0] === "!add_site_manga") {
+        if (args.length !== 3) message.reply("Not enought argument")
+        // Needed args: site_name, manga_name
+        const site = await getSiteFromName(args[1]);
+        const manga = await getMangaFromName(args.slice(2).join(""));
+        await addSiteToManga(manga, site.length === 0 ? await createSite(args[1]) : site[0]);
+    }
 })
 
 client.on("ready", async () => {
