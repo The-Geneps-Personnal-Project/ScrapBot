@@ -25,7 +25,9 @@ function getChapterLimiter(url: string): string {
  * @returns 
  */
 function normalizeURL(url: string, toRemove : number = 1): string {
-    const normalized_url = url.endsWith("/") ? url.slice(0, -1) : url;
+    let normalized_url = url.endsWith("/") ? url.slice(0, -1) : url;
+    if (url[url.indexOf("chapter") - 1] === '-')
+        normalized_url = normalized_url.slice(0, normalized_url.indexOf("chapter") - 1) + "/" + normalized_url.slice(normalized_url.indexOf("chapter"))
     const parts = normalized_url.split("/")
     
     toRemove = Math.min(toRemove, parts.length - 1)
@@ -43,10 +45,9 @@ function normalizeURL(url: string, toRemove : number = 1): string {
 export async function getChapterElement(page: Page): Promise<string> {
     const href = await page.evaluate(() => {
         const links = Array.from(document.querySelectorAll('a'));
-        const targetLink = links.find(link => link.textContent?.toLowerCase().includes("chapter"));
-        return targetLink ? targetLink.href : "";
+        const targetLink = links.filter(link => link.textContent?.toLowerCase().includes("chapter"));
+        return targetLink[3] ? targetLink[3].href : "";
     });
-    if (!href) return ""
     return href
 }
 
