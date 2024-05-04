@@ -79,21 +79,43 @@ client.on("messageCreate", async message => {
     const args = message.content.split(" ");
 
     if (args[0] === "!add_site") {
-        if (args.length !== 2) message.reply("Help: !add_site <url>");
-        await createSite(args[1]);
-        message.reply(`Added ${args[1].split("/")[2]} to the list.`);
+        try {
+            if (args.length !== 2) throw new Error("Help: !add_site <url>");
+            const existingSite = await getSiteFromName(args[1].split("/")[2].split(".")[0]);
+            if (existingSite.length > 0) throw new Error("Site already exists");
+
+            await createSite(args[1]);
+            message.reply(`Added ${args[1].split("/")[2]} to the list.`);
+        } catch (error) {
+            message.reply((error as Error).message)
+        }
     }
 
     if (args[0] === "!remove_site") {
-        if (args.length !== 2) message.reply("Help: !remove_site <url>");
-        removeSite(args[1]);
-        message.reply(`Removed ${args[1].split("/")[2]} from the list.`);
+        try {
+            if (args.length !== 2) throw new Error("Help: !remove_site <url>");
+            const existingSite = await getSiteFromName(args[1]);
+            if (existingSite.length === 0) throw new Error("Site does not exist");
+
+            await removeSite(args[1]);
+            message.reply(`Removed ${args[1]} from the list.`);
+        } catch (error){
+            message.reply((error as Error).message)
+        }
     }
 
     if (args[0] === "!remove_manga") {
-        if (args.length !== 2) message.reply("Help: !remove_manga <name>");
-        removeManga(args[1]);
-        message.reply(`Removed ${args[1]} from the list.`);
+        try {
+            if (args.length === 1) throw new Error("Help: !remove_manga <name>");
+            const name = args.slice(1).join(" ");
+            const existingManga = await getMangaFromName(name);
+            if (existingManga.length === 0) throw new Error("Manga does not exist");
+
+            await removeManga(name);
+            message.reply(`Removed ${name} from the list.`);
+        } catch (error) {
+            message.reply((error as Error).message)
+        }
     }
 
     if (args[0] === "!add_manga") {
@@ -105,27 +127,43 @@ client.on("messageCreate", async message => {
                 name: args.slice(4).join(" "),
                 sites: await getSiteFromName(args[3]),
             };
+            const existingManga = await getMangaFromName(manga.name);
+            if (existingManga.length > 0) throw new Error("Manga already exists");
+
             await addManga(manga);
-        } catch {
-            message.reply("Failed to add new manga")
+        } catch (error) {
+            message.reply((error as Error).message)
         }
     }
 
     if (args[0] === "!remove_site_manga") {
-        if (args.length !== 3) message.reply("Not enought argument")
         // Needed args: site_name, manga_name
-        const site = await getSiteFromName(args[1]);
-        const manga = await getMangaFromName(args.slice(2).join(""));
+        try {
+            if (args.length !== 3) throw new Error("Not enought argument")
+            const site = await getSiteFromName(args[1]);
+            const manga = await getMangaFromName(args.slice(2).join(""));
 
-        await removeSiteFromManga(site[0], manga);
+            if (site.length === 0 || manga.length === 0) throw new Error("Site or manga does not exist");
+
+            await removeSiteFromManga(site[0], manga[0]);
+        } catch (error) {
+            message.reply((error as Error).message)
+        }
     }
 
     if (args[0] === "!add_site_manga") {
-        if (args.length !== 3) message.reply("Not enought argument")
         // Needed args: site_name, manga_name
-        const site = await getSiteFromName(args[1]);
-        const manga = await getMangaFromName(args.slice(2).join(""));
-        await addSiteToManga(manga, site.length === 0 ? await createSite(args[1]) : site[0]);
+        try {
+            if (args.length < 3) throw new Error("Not enought argument")
+            const site = await getSiteFromName(args[1]);
+            const manga = await getMangaFromName(args.slice(2).join(" "));
+
+            if (site.length === 0 || manga.length === 0) throw new Error("Site or manga does not exist");
+
+            await addSiteToManga(site[0], manga[0]);
+        } catch (error) {
+            message.reply((error as Error).message)
+        }
     }
 })
 
