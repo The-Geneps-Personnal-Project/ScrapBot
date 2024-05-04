@@ -34,8 +34,8 @@ export async function getSiteFromName(name: string): Promise<SiteInfo[]> {
     return site;
 }
 
-export async function getMangaFromName(name: string): Promise<MangaInfo> {
-    const manga: MangaInfo = 
+export async function getMangaFromName(name: string): Promise<MangaInfo[]> {
+    const manga: MangaInfo[] = 
       await readDatabase('SELECT * FROM mangas WHERE name = ?', [name]);
 
     return manga;
@@ -91,9 +91,9 @@ export async function setMangasInfo(results: ScrapingResult[]): Promise<void> {
 
 export async function addManga(manga: MangaInfo): Promise<void> {
     const db = await openDatabase();
-
-    await db.exec('BEGIN TRANSACTION');
+    
     try {
+        await db.exec('BEGIN TRANSACTION');
         const { lastID } = await db.run(
             'INSERT INTO mangas (anilist_id, name, chapter, alert) VALUES (?, ?, ?, ?)',
             manga.anilist_id,
@@ -122,8 +122,8 @@ export async function addManga(manga: MangaInfo): Promise<void> {
 export async function addSite(site: SiteInfo): Promise<void> {
     const db = await openDatabase();
 
-    await db.exec('BEGIN TRANSACTION');
     try {
+        await db.exec('BEGIN TRANSACTION');
         await db.run(
             'INSERT INTO sites (site, url, chapter_url, chapter_limiter) VALUES (?, ?, ?, ?)',
             site.site,
@@ -144,9 +144,12 @@ export async function addSite(site: SiteInfo): Promise<void> {
 export async function removeManga(name: string): Promise<void> {
     const db = await openDatabase();
 
-    await db.exec('BEGIN TRANSACTION');
+    const manga = await getMangaFromName(name);
+
     try {
-        await db.run('DELETE FROM mangas WHERE name = ?', name);
+        await db.exec('BEGIN TRANSACTION');
+        await db.run('DELETE FROM mangas WHERE name = ?', manga[0].name);
+        await db.run('DELETE FROM manga_sites WHERE manga_id = ?', manga[0].id);
         await db.exec('COMMIT');
     } catch (error) {
         await db.exec('ROLLBACK');
@@ -159,9 +162,12 @@ export async function removeManga(name: string): Promise<void> {
 export async function removeSite(site: string): Promise<void> {
     const db = await openDatabase();
 
+    const s = await getSiteFromName(site);
+
     await db.exec('BEGIN TRANSACTION');
     try {
-        await db.run('DELETE FROM sites WHERE site = ?', site);
+        await db.run('DELETE FROM sites WHERE site = ?', s[0].site);
+        await db.run('DELETE FROM manga_sites WHERE site_id = ?', s[0].id)
         await db.exec('COMMIT');
     } catch (error) {
         await db.exec('ROLLBACK');
@@ -174,24 +180,24 @@ export async function removeSite(site: string): Promise<void> {
 export async function removeSiteFromManga(site: SiteInfo, manga: MangaInfo): Promise<void> {
     const db = await openDatabase();
 
-    await db.exec('BEGIN TRANSACTION');
     try {
+        await db.exec('BEGIN TRANSACTION');
         await db.run('DELETE FROM manga_sites WHERE manga_id = ? AND site_id = ?', manga.id, site.id);
         await db.exec('COMMIT');
     } catch (error) {
         await db.exec('ROLLBACK');
         console.error(`Failed to remove site from manga:`, error);
         throw error;
+    } finally {
+        db.close();
     }
-    db.close();
 }
 
-export async function addSiteToManga(manga: MangaInfo, site: SiteInfo): Promise<void> {
+export async function addSiteToManga(site: SiteInfo, manga: MangaInfo): Promise<void> {
     const db = await openDatabase();
 
-    await db.exec('BEGIN TRANSACTION');
-    try {        console.log(manga)
-
+    try {
+        await db.exec('BEGIN TRANSACTION');
         await db.run(
             'INSERT INTO manga_sites (manga_id, site_id) VALUES (?, ?)',
             manga.id,
