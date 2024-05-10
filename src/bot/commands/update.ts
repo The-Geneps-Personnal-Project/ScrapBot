@@ -1,7 +1,5 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
 import { getMangaFromName, getSiteFromName } from "../../database/sqlite/querys/get";
-import { removeManga, removeSite, removeSiteFromManga } from "../../database/sqlite/querys/delete";
-import { getAllMangas, getAllSites } from "../../database/sqlite/querys/get";
 import { Command } from "../classes/command";
 import { createSite } from "../../database/sqlite/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../database/sqlite/querys/update";

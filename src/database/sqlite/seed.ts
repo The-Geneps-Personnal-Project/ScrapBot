@@ -1,6 +1,5 @@
 import puppeteer, { Page } from "puppeteer";
-import { addSite } from "./querys/create";
-import { MangaInfo, SiteInfo } from "../../types/types";
+import { SiteInfo } from "../../types/types";
 
 /**
  * @description Get the chapter limiter from the url
