@@ -1,11 +1,9 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "./types";
-import { getChapterElement } from "./seed";
+import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "../types/types";
+import { getChapterElement } from "../database/sqlite/seed";
 
 puppeteer.use(StealthPlugin());
-
-
 
 export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
     const browser = await puppeteer.launch({
@@ -30,12 +28,12 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
             try {
                 await page.goto(site.url, { waitUntil: "domcontentloaded" });
 
-                const lastChapterText = await getChapterElement(page)
+                const lastChapterText = await getChapterElement(page);
 
                 const lastChapterTextMatch = lastChapterText?.match(/\d+(\.\d+)?/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0]) : NaN;
 
-                console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter)
+                console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter);
 
                 if (!isNaN(lastChapter)) {
                     foundNewChapter = true;

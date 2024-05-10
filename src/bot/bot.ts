@@ -1,11 +1,22 @@
 import { Client, IntentsBitField, EmbedBuilder, TextChannel, GatewayIntentBits } from "discord.js";
 import env from "dotenv";
 import { CronJob } from "cron";
-import { scrapeSiteInfo } from "./scraping";
-import { ScrapingResult, MangaInfo, ScrapingError, SiteInfo } from "./types";
-import { getMangasInfo, removeManga, removeSite, setMangasInfo, getSiteFromName, addManga, getMangaFromName, removeSiteFromManga, addSiteToManga } from "./files";
-import { updateList } from "./graphql";
-import { createSite } from "./seed";
+import { scrapeSiteInfo } from "../scrap/scraping";
+import { ScrapingResult, MangaInfo, ScrapingError, SiteInfo } from "../types/types";
+import {
+    getMangasInfo,
+    removeManga,
+    removeSite,
+    setMangasInfo,
+    getSiteFromName,
+    addManga,
+    getMangaFromName,
+    removeSiteFromManga,
+    addSiteToManga,
+} from "../database/sqlite/database";
+import { updateList } from "../database/graphql/graphql";
+import { createSite } from "../database/sqlite/seed";
+import { deploy } from "./deploy";
 
 env.config({ path: __dirname + "/../.env" });
 
@@ -87,7 +98,7 @@ client.on("messageCreate", async message => {
             await createSite(args[1]);
             message.reply(`Added ${args[1].split("/")[2]} to the list.`);
         } catch (error) {
-            message.reply((error as Error).message)
+            message.reply((error as Error).message);
         }
     }
 
@@ -99,8 +110,8 @@ client.on("messageCreate", async message => {
 
             await removeSite(args[1]);
             message.reply(`Removed ${args[1]} from the list.`);
-        } catch (error){
-            message.reply((error as Error).message)
+        } catch (error) {
+            message.reply((error as Error).message);
         }
     }
 
@@ -114,7 +125,7 @@ client.on("messageCreate", async message => {
             await removeManga(name);
             message.reply(`Removed ${name} from the list.`);
         } catch (error) {
-            message.reply((error as Error).message)
+            message.reply((error as Error).message);
         }
     }
 
@@ -132,14 +143,14 @@ client.on("messageCreate", async message => {
 
             await addManga(manga);
         } catch (error) {
-            message.reply((error as Error).message)
+            message.reply((error as Error).message);
         }
     }
 
     if (args[0] === "!remove_site_manga") {
         // Needed args: site_name, manga_name
         try {
-            if (args.length !== 3) throw new Error("Not enought argument")
+            if (args.length !== 3) throw new Error("Not enought argument");
             const site = await getSiteFromName(args[1]);
             const manga = await getMangaFromName(args.slice(2).join(""));
 
@@ -147,14 +158,14 @@ client.on("messageCreate", async message => {
 
             await removeSiteFromManga(site[0], manga[0]);
         } catch (error) {
-            message.reply((error as Error).message)
+            message.reply((error as Error).message);
         }
     }
 
     if (args[0] === "!add_site_manga") {
         // Needed args: site_name, manga_name
         try {
-            if (args.length < 3) throw new Error("Not enought argument")
+            if (args.length < 3) throw new Error("Not enought argument");
             const site = await getSiteFromName(args[1]);
             const manga = await getMangaFromName(args.slice(2).join(" "));
 
@@ -162,16 +173,19 @@ client.on("messageCreate", async message => {
 
             await addSiteToManga(site[0], manga[0]);
         } catch (error) {
-            message.reply((error as Error).message)
+            message.reply((error as Error).message);
         }
     }
-})
+});
 
 client.on("ready", async () => {
     console.log(`Logged in as ${client.user?.tag}`);
+    await deploy();
+
     const channels = await setupChannels();
     //Channels[0] is the update channel, Channels[1] is the error channel, Channels[2] is the backup channel
-    const crontab = new CronJob("0 21 * * *", async () => { // Every day at 9pm (+1h with the server timezone)
+    const crontab = new CronJob("0 21 * * *", async () => {
+        // Every day at 9pm (+1h with the server timezone)
         await channels[0].bulkDelete(100);
         await initiateScraping(channels[0], channels[1]);
     });
