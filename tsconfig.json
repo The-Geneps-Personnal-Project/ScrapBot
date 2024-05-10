@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-      "target": "ES2022",
+      "target": "es6",
       "module": "CommonJS",
       "moduleResolution": "Node",
       "strict": true,
@@ -8,9 +8,11 @@
       "declaration": false,
       "skipLibCheck": true,
       "strictNullChecks": true,
+      "strictPropertyInitialization": false,
       "resolveJsonModule": true,
       "outDir": "dist",
-      "esModuleInterop": true
+      "esModuleInterop": true,
+      "removeComments": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

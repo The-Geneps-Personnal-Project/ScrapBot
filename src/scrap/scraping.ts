@@ -2,6 +2,10 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "../types/types";
 import { getChapterElement } from "../database/sqlite/seed";
+import { getMangasInfo, setMangasInfo } from "../database/sqlite/database";
+import { updateList } from "../database/graphql/graphql";
+import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
+import CustomClient from "../bot/classes/client";
 
 puppeteer.use(StealthPlugin());
 
@@ -67,4 +71,18 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
 
     await browser.close();
     return [scrapingResults, scrapingErrors];
+}
+
+export async function initiateScraping(client: CustomClient) {
+    const mangas: MangaInfo[] = await getMangasInfo();
+
+    const [result, errors] = await scrapeSiteInfo(mangas);
+    if (errors && errors.length > 0) sendErrorMessage(errors, client);
+    if (result && result.length > 0) {
+        await sendUpdateMessages(result, client);
+        setMangasInfo(result);
+        await updateList(result);
+    } else {
+        client.chans.get("updates")?.send("No new chapters found.");
+    }
 }
