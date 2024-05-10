@@ -1,5 +1,4 @@
 import {REST, Routes} from "discord.js"
-import env from "dotenv";
 import fs from "fs"
 import path from "path";
 
@@ -23,9 +22,9 @@ async function getCommannds(): Promise<unknown[]> {
 
 export async function deploy(): Promise<void> {
     try {
-        const token = env.config().parsed?.token as string;
-        const clientId = env.config().parsed?.clientId as string;
-        const guildId = env.config().parsed?.guildId as string;
+        const token = process.env.token as string;
+        const clientId = process.env.clientId as string;
+        const guildId = process.env.guildId as string;
 
         const rest = new REST().setToken(token);
 
