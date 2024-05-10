@@ -102,7 +102,7 @@ export async function createSite(url: string): Promise<SiteInfo> {
                 chapter_limiter: chapterLimiter,
             };
             console.log("Creating site:", siteInfo);
-            await addSite(siteInfo);
+            return siteInfo;
         }
     } catch (error) {
         console.error("Failed to create site:", error);
