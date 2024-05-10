@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 
 import CustomClient from './client';
-import { ChatInputCommandInteraction, CommandInteraction } from 'discord.js';
+import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteraction } from 'discord.js';
 
 export type CommandArgs = {
 
@@ -12,7 +12,9 @@ export type CommandArgs = {
 export class Command {
     builder: SlashCommandBuilder;
 
-    run: (args: CommandArgs) => any;
+    run: (args: CommandArgs) => void;
+
+    autocomplete?: (interaction: AutocompleteInteraction) => void;
 
     constructor(options: NonNullable<Command>) {
         Object.assign(this, options);
