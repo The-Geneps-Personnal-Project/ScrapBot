@@ -1,5 +1,5 @@
 import puppeteer, { Page } from "puppeteer";
-import { addSite } from "./database";
+import { addSite } from "./querys/create";
 import { MangaInfo, SiteInfo } from "../../types/types";
 
 /**
