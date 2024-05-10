@@ -2,24 +2,24 @@ import { SlashCommandBuilder, CommandInteraction, ApplicationCommandOption } fro
 import { MangaInfo } from "../../types/types";
 import { getSiteFromName, getMangaFromName, addManga } from "../../database/sqlite/database";
 
-async function createSite(interaction: CommandInteraction) {
+async function createSite(interaction: CommandInteraction): Promise<void> {
     // Create a site in the database
 }
 
-async function createManga(interaction: CommandInteraction) {
+async function createManga(interaction: CommandInteraction): Promise<void> {
     try {
         const manga: MangaInfo = {
-            anilist_id: interaction.options.getNumber('anilistID'),
-            chapter: interaction.options.getString('chapter') as string,
-            name: interaction.options.getString('name') as string,
-            sites: await getSiteFromName(interaction.options.getString('site') as string),
+            anilist_id: interaction.options.get('anilistID')?.value as number,
+            chapter: interaction.options.get('chapter')?.value as string,
+            name: interaction.options.get('name')?.value as string,
+            sites: await getSiteFromName(interaction.options.get('site')?.value as string),
         };
         const existingManga = await getMangaFromName(manga.name);
         if (existingManga.length > 0) throw new Error("Manga already exists");
 
         await addManga(manga);
     } catch (error) {
-        interaction.reply((error as Error).message);
+        await interaction.reply((error as Error).message);
     }}
 
 module.exports = {
@@ -39,13 +39,13 @@ module.exports = {
             .setDescription('Add a site to the database')
             .addStringOption(option => option.setName('url').setDescription('The url of the site').setRequired(true))
         ),
-async execute(interaction: CommandInteraction & { options: { getSubcommand(): string } }) {
-    const subcommand = interaction.options.getSubcommand();
-    const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
-        manga: createManga,
-        site: createSite,
-    };
+    async execute(interaction: CommandInteraction & { options: { getSubcommand(): string } }) {
+        const subcommand = interaction.options.getSubcommand();
+        const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
+            manga: createManga,
+            site: createSite,
+        };
 
-    subcommands[subcommand](interaction);
-},
+        await subcommands[subcommand](interaction);
+    },
 };
