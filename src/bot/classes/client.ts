@@ -18,12 +18,12 @@ export default class CustomClient extends Client {
 
     async start() {
         await this.resolveModules();
-        await this.login(process.env.token);
+        await this.login(process.env.TOKEN);
         await this.resolveChannels();
     }
 
     async resolveChannels() {
-        const ids = [process.env.update_chan, process.env.error_chan, process.env.backup_chan];
+        const ids = [process.env.UPDATE, process.env.ERROR, process.env.BACKUP];
         for (const id of ids) {
             const chan = (await this.channels.fetch(id!)) as TextChannel;
             this.chans.set(chan.name, chan);

@@ -14,7 +14,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
-        executablePath: "/usr/bin/chromium-browser",
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
 
     const scrapingResults: ScrapingResult[] = [];
@@ -76,6 +76,8 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
 
 export async function initiateScraping(client: CustomClient) {
     const mangas: MangaInfo[] = await getMangasInfo();
+
+    await client.chans.get("updates")?.bulkDelete(100);
 
     const [result, errors] = await scrapeSiteInfo(mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, client);

@@ -8,7 +8,7 @@ export function replaceURL(url: string): string {
 
 export async function openDatabase(): Promise<Database> {
     return await open({
-        filename: `${process.cwd()}/stockage/database.sqlite3`,
+        filename: `${process.cwd()}/stockage/${process.env.DB_NAME}`,
         driver: db.Database,
     });
 }
