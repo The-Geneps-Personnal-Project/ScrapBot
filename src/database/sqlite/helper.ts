@@ -8,7 +8,7 @@ export function replaceURL(url: string): string {
 
 export async function openDatabase(): Promise<Database> {
     return await open({
-        filename: `${process.cwd()}/stockage/${process.env.DB_NAME}`,
+        filename: `${process.cwd()}/stockage/${process.env.NODE_ENV === "production" ? process.env.DB_NAME : process.env.DB_NAME_TEST}`,
         driver: db.Database,
     });
 }
