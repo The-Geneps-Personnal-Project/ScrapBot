@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
-import { getMangaFromName, getSiteFromName } from "../../database/sqlite/querys/get";
+import { getMangaFromName, getSiteFromName, getAllMangas } from "../../database/sqlite/querys/get";
 import { Command } from "../classes/command";
 import { createSite } from "../../database/sqlite/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../database/sqlite/querys/update";
@@ -48,6 +48,7 @@ export default new Command({
                         .setName("manga")
                         .setDescription("The name of the manga")
                         .setRequired(true)
+                        .setAutocomplete(true)
                 )
                 .addStringOption(option =>
                     option
@@ -61,6 +62,7 @@ export default new Command({
                         .setName("value")
                         .setDescription("The value to change")
                         .setRequired(true)
+                        .setAutocomplete(true)
                 )
         )
         .addSubcommand(subcommand =>
@@ -97,10 +99,14 @@ export default new Command({
         }
     },
     autocomplete: async interaction => {
-        const focused = interaction.options.getFocused();
-        const choices = ["alert", "chapter"]
+        const focused = interaction.options.getFocused(true);
+        let choices: {name: string, value:string}[] = [];
 
-        const filtered = choices.filter(choice => choice.startsWith(focused));
-        await interaction.respond(filtered.map(choice => ({ name: choice, value: choice })));
+        if (focused.name === "manga") choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
+        else if (focused.name === "key") choices = ["alert", "chapter"].map(choice => ({ name: choice, value: choice }));
+        else if (focused.name === "value") choices = [{ name: "true", value: "1" }, { name: "false", value: "0" }];
+
+        const filtered = choices.filter(choice => choice.name.startsWith(focused.value));
+        await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },
 });

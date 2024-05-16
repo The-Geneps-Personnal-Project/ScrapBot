@@ -18,7 +18,7 @@ async function site(interaction: CommandInteraction): Promise<void> {
 
 async function manga(interaction: CommandInteraction): Promise<void> {
     try {
-        const name = interaction.options.get("name")?.value as string;
+        const name = interaction.options.get("manga")?.value as string;
         const existingManga = await getMangaFromName(name);
         if (existingManga.length === 0) throw new Error("Manga does not exist");
 
