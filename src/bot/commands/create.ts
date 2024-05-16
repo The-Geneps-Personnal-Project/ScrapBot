@@ -32,6 +32,7 @@ async function manga(interaction: CommandInteraction): Promise<void> {
         if (existingManga.length > 0) throw new Error("Manga already exists");
 
         await addManga(manga);
+        await interaction.editReply(`Added ${manga.name} to the list.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);
     }

@@ -76,7 +76,7 @@ export async function createSite(url: string): Promise<SiteInfo> {
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
-        executablePath: "/usr/bin/chromium-browser",
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
 
     let siteInfo: SiteInfo = {} as SiteInfo;
