@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
-import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../database/sqlite/querys/get";
-import { removeManga, removeSite, removeSiteFromManga } from "../../database/sqlite/querys/delete";
+import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../API/querys/get";
+import { removeManga, removeSite, removeSiteFromManga } from "../../API/querys/delete";
 import { Command } from "../classes/command";
 
 async function site(interaction: CommandInteraction): Promise<void> {
@@ -38,7 +38,7 @@ async function siteFromManga(interaction: CommandInteraction): Promise<void> {
         const existingSite = await getSiteFromName(site);
         if (existingSite.length === 0) throw new Error("Site does not exist");
 
-        await removeSiteFromManga(existingSite[0], existingManga[0]);
+        await removeSiteFromManga(existingSite[0].site, existingManga[0].name);
         interaction.editReply(`Removed ${site} from ${manga}.`);
     } catch (error) {
         interaction.editReply((error as Error).message);

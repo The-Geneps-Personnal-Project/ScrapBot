@@ -1,5 +1,5 @@
 export interface MangaInfo {
-    id?: Number
+    id?: Number;
     sites: SiteInfo[];
     anilist_id: Number;
     alert?: Number;

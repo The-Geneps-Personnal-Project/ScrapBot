@@ -3,9 +3,7 @@ import { Command } from "../classes/command";
 import { initiateScraping } from "../../scrap/scraping";
 
 export default new Command({
-    builder: new SlashCommandBuilder()
-        .setName("run")
-        .setDescription("Run the scraping process"),
+    builder: new SlashCommandBuilder().setName("run").setDescription("Run the scraping process"),
     run: async ({ client, interaction }) => {
         try {
             await interaction.deferReply();

@@ -1,10 +1,10 @@
 import { CommandInteraction } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { MangaInfo } from "../../types/types";
-import { createSite } from "../../database/sqlite/seed";
+import { createSite } from "../../API/seed";
 import { Command } from "../classes/command";
-import { addManga, addSite, addSiteToManga } from "../../database/sqlite/querys/create";
-import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../database/sqlite/querys/get";
+import { addManga, addSite, addSiteToManga } from "../../API/querys/create";
+import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/querys/get";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
@@ -47,7 +47,7 @@ async function siteToManga(interaction: CommandInteraction): Promise<void> {
         const existingSite = await getSiteFromName(site);
         if (existingSite.length === 0) throw new Error("Site does not exist");
 
-        await addSiteToManga(existingSite[0], existingManga[0]);
+        await addSiteToManga(existingSite[0].site, existingManga[0].name);
         await interaction.editReply(`Added ${site} to ${manga}.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);

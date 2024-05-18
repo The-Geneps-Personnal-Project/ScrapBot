@@ -1,6 +1,6 @@
-import { ClientEvents } from 'discord.js';
+import { ClientEvents } from "discord.js";
 
-import CustomClient from './client';
+import CustomClient from "./client";
 
 export class Event {
     name!: keyof ClientEvents;
