@@ -1,10 +1,10 @@
-import axios, { AxiosResponse } from "axios";
+import axios, { AxiosResponse, AxiosError } from "axios";
 
 function getApiBaseUrl(): string {
     return `${process.env.NODE_ENV === "production" ? process.env.API_URL : process.env.API_URL_TEST}`;
 }
 
-export async function fetchFromApi<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+export async function getFromApi<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}/${endpoint}`;
 
@@ -13,7 +13,7 @@ export async function fetchFromApi<T>(endpoint: string, params?: Record<string, 
         return response.data;
     } catch (error) {
         console.error("Failed to fetch from API:", error);
-        throw error;
+        throw error as AxiosError;
     }
 }
 
@@ -30,7 +30,7 @@ export async function postToApi<T>(
         return response.data;
     } catch (error) {
         console.error("Failed to post to API:", error);
-        throw error;
+        throw error as AxiosError;
     }
 }
 
@@ -47,7 +47,7 @@ export async function putToApi<T>(
         return response.data;
     } catch (error) {
         console.error("Failed to put to API:", error);
-        throw error;
+        throw error as AxiosError;
     }
 }
 
@@ -60,6 +60,6 @@ export async function deleteFromApi<T>(endpoint: string, params?: Record<string,
         return response.data;
     } catch (error) {
         console.error("Failed to delete from API:", error);
-        throw error;
+        throw error as AxiosError;
     }
 }

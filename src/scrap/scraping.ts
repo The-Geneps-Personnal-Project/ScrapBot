@@ -82,9 +82,13 @@ export async function initiateScraping(client: CustomClient) {
     const [result, errors] = await scrapeSiteInfo(mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, client);
     if (result && result.length > 0) {
-        await sendUpdateMessages(result, client);
-        setMangasInfo(result);
-        await updateList(result);
+        try {
+            await sendUpdateMessages(result, client);
+            setMangasInfo(result);
+            await updateList(result);
+        } catch (error) {
+            console.error(`Failed to update:`, error);
+        }
     } else {
         client.chans.get("updates")?.send("No new chapters found.");
     }
