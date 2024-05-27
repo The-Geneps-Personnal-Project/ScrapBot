@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
-import { getMangaFromName, getSiteFromName, getAllMangas } from "../../API/querys/get";
+import { getMangaFromName, getSiteFromName, getAllMangas } from "../../API/queries/get";
 import { Command } from "../classes/command";
 import { createSite } from "../../API/seed";
-import { updateSiteInfo, updateMangaInfo } from "../../API/querys/update";
+import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
 
 async function changeManga(interaction: CommandInteraction): Promise<void> {
     try {

@@ -3,8 +3,8 @@ import { SlashCommandBuilder } from "@discordjs/builders";
 import { MangaInfo } from "../../types/types";
 import { createSite } from "../../API/seed";
 import { Command } from "../classes/command";
-import { addManga, addSite, addSiteToManga } from "../../API/querys/create";
-import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/querys/get";
+import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
+import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/queries/get";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {

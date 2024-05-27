@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
-import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../API/querys/get";
-import { removeManga, removeSite, removeSiteFromManga } from "../../API/querys/delete";
+import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../API/queries/get";
+import { removeManga, removeSite, removeSiteFromManga } from "../../API/queries/delete";
 import { Command } from "../classes/command";
 
 async function site(interaction: CommandInteraction): Promise<void> {
