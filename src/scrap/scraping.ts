@@ -1,9 +1,9 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "../types/types";
-import { getChapterElement } from "../database/sqlite/seed";
-import { getMangasInfo } from "../database/sqlite/querys/get";
-import { setMangasInfo } from "../database/sqlite/querys/update";
+import { getChapterElement } from "../API/seed";
+import { getAllMangas } from "../API/queries/get";
+import { setMangasInfo } from "../API/queries/update";
 import { updateList } from "../database/graphql/graphql";
 import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
 import CustomClient from "../bot/classes/client";
@@ -75,16 +75,20 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
 }
 
 export async function initiateScraping(client: CustomClient) {
-    const mangas: MangaInfo[] = await getMangasInfo();
+    const mangas: MangaInfo[] = await getAllMangas();
 
     await client.chans.get("updates")?.bulkDelete(100);
 
     const [result, errors] = await scrapeSiteInfo(mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, client);
     if (result && result.length > 0) {
-        await sendUpdateMessages(result, client);
-        setMangasInfo(result);
-        await updateList(result);
+        try {
+            await sendUpdateMessages(result, client);
+            setMangasInfo(result);
+            await updateList(result);
+        } catch (error) {
+            console.error(`Failed to update:`, error);
+        }
     } else {
         client.chans.get("updates")?.send("No new chapters found.");
     }

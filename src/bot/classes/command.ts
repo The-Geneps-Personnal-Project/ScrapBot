@@ -1,10 +1,9 @@
-import { SlashCommandBuilder } from '@discordjs/builders';
+import { SlashCommandBuilder } from "@discordjs/builders";
 
-import CustomClient from './client';
-import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteraction } from 'discord.js';
+import CustomClient from "./client";
+import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteraction } from "discord.js";
 
 export type CommandArgs = {
-
     client: CustomClient;
     interaction: ChatInputCommandInteraction;
 };

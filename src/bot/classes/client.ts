@@ -23,9 +23,10 @@ export default class CustomClient extends Client {
     }
 
     async resolveChannels() {
-        const ids = process.env.NODE_ENV === "production" 
-        ? [process.env.UPDATE, process.env.ERROR, process.env.BACKUP] 
-        : [process.env.TEST_UPDATE, process.env.TEST_ERROR, process.env.TEST_BACKUP];
+        const ids =
+            process.env.NODE_ENV === "production"
+                ? [process.env.UPDATE, process.env.ERROR, process.env.BACKUP]
+                : [process.env.TEST_UPDATE, process.env.TEST_ERROR, process.env.TEST_BACKUP];
 
         for (const id of ids) {
             const chan = (await this.channels.fetch(id!)) as TextChannel;
@@ -43,7 +44,7 @@ export default class CustomClient extends Client {
         requireAll({
             ...sharedSettings,
             dirname: path.join(__dirname, "../commands"),
-            resolve: (x) => {
+            resolve: x => {
                 const command = x.default as Command;
                 console.log(`Command '${command.builder.name}' registered.`);
                 this.commands.set(command.builder.name, command);
@@ -54,7 +55,7 @@ export default class CustomClient extends Client {
         requireAll({
             ...sharedSettings,
             dirname: path.join(__dirname, "../events"),
-            resolve: (x) => {
+            resolve: x => {
                 const event = x.default as Event;
                 console.log(`Event '${event.name}' registered.`);
                 handleEvent(this, event);

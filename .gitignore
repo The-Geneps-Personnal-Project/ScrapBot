@@ -130,3 +130,5 @@ dist
 .pnp.*
 
 stockage
+yarn.lock
+package-lock.json
