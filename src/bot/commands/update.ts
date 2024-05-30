@@ -1,8 +1,9 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
-import { getMangaFromName, getSiteFromName, getAllMangas } from "../../API/queries/get";
+import { getMangaFromName, getSiteFromName, getAllMangas, getAllSites } from "../../API/queries/get";
 import { Command } from "../classes/command";
 import { createSite } from "../../API/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
+import { SiteInfo } from "../../types/types";
 
 async function changeManga(interaction: CommandInteraction): Promise<void> {
     try {
@@ -25,16 +26,25 @@ async function changeManga(interaction: CommandInteraction): Promise<void> {
 
 async function changeSite(interaction: CommandInteraction): Promise<void> {
     try {
-        const site = await getSiteFromName(
-            (interaction.options.get("site")?.value as string).split("/")[2].split(".")[0]
+        let site = await getSiteFromName(
+            (interaction.options.get("site")?.value as string)
         );
         if (site.length === 0) throw new Error("Site does not exist");
 
         const new_site = await createSite(interaction.options.get("url")?.value as string);
-        await updateSiteInfo(new_site);
+
+        const toUpdate = {
+            id: site[0].id,
+            site: site[0].site,
+            url: new_site.url,
+            chapter_url: new_site.chapter_url,
+            chapter_limiter: new_site.chapter_limiter,
+        } as SiteInfo;
+
+        await updateSiteInfo(toUpdate);
 
         await interaction.editReply(
-            `Changed ${interaction.options.get("key")?.value} to ${interaction.options.get("value")?.value} for ${site[0].site}.`
+            `Updated ${site[0].site}.`
         );
     } catch (error) {
         await interaction.editReply((error as Error).message);
@@ -72,6 +82,9 @@ export default new Command({
                 .setName("site")
                 .setDescription("Update a site")
                 .addStringOption(option =>
+                    option.setName("site").setDescription("The name of the site").setRequired(true).setAutocomplete(true)
+                )
+                .addStringOption(option =>
                     option.setName("url").setDescription("The url of the site").setRequired(true)
                 )
         ) as SlashCommandBuilder,
@@ -103,6 +116,8 @@ export default new Command({
 
         if (focused.name === "manga")
             choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
+        else if (focused.name === "site")
+            choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
         else if (focused.name === "key")
             choices = ["alert", "chapter"].map(choice => ({ name: choice, value: choice }));
         else if (focused.name === "value")
