@@ -72,7 +72,7 @@ export async function getElement(page: Page, selector: string): Promise<string> 
     return link;
 }
 
-export async function createSite(url: string): Promise<SiteInfo> {
+export async function FetchSite(url: string): Promise<SiteInfo> {
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
@@ -100,7 +100,6 @@ export async function createSite(url: string): Promise<SiteInfo> {
                 chapter_url: normalizeURL(chapterUrl, 2) + "/",
                 chapter_limiter: chapterLimiter,
             };
-            console.log("Creating site:", siteInfo);
             return siteInfo;
         }
     } catch (error) {

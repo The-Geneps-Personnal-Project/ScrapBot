@@ -1,7 +1,7 @@
 import { CommandInteraction } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { MangaInfo } from "../../types/types";
-import { createSite } from "../../API/seed";
+import { FetchSite } from "../../API/seed";
 import { Command } from "../classes/command";
 import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
 import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/queries/get";
@@ -12,7 +12,7 @@ async function site(interaction: CommandInteraction): Promise<void> {
         const existingSite = await getSiteFromName(url.split("/")[2].split(".")[0]);
         if (existingSite) throw new Error("Site already exists");
 
-        const site = await createSite(url);
+        const site = await FetchSite(url);
         await addSite(site);
         await interaction.editReply(`Added ${site.site} to the list.`);
     } catch (error) {
