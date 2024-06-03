@@ -1,15 +1,18 @@
 import axios, { AxiosResponse, AxiosError } from "axios";
+import env from "dotenv";
+
+env.config({ path: __dirname + "/../.env" });
 
 function getApiBaseUrl(): string {
-    return `${process.env.NODE_ENV === "production" ? process.env.API_URL : process.env.API_URL_TEST}`;
+    return `${process.env.NODE_ENV === "production" ? process.env.API_URL : process.env.API_TEST_URL}`;
 }
 
-export async function getFromApi<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+export async function getFromApi<T>(endpoint: string): Promise<T> {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}/${endpoint}`;
 
     try {
-        const response: AxiosResponse<T> = await axios.get(url, { params });
+        const response: AxiosResponse<T> = await axios.get(url);
         return response.data;
     } catch (error) {
         console.error("Failed to fetch from API:", error);

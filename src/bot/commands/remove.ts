@@ -1,13 +1,13 @@
-import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, CommandInteraction } from "discord.js";
 import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../API/queries/get";
 import { removeManga, removeSite, removeSiteFromManga } from "../../API/queries/delete";
 import { Command } from "../classes/command";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
-        const url = interaction.options.get("name")?.value as string;
+        const url = interaction.options.get("site")?.value as string;
         const existingSite = await getSiteFromName(url);
-        if (existingSite.length > 0) throw new Error("Site already exists");
+        if (!existingSite) throw new Error("Site does not exists");
 
         await removeSite(url);
         interaction.editReply(`Removed site ${url}.`);
@@ -20,7 +20,7 @@ async function manga(interaction: CommandInteraction): Promise<void> {
     try {
         const name = interaction.options.get("manga")?.value as string;
         const existingManga = await getMangaFromName(name);
-        if (existingManga.length === 0) throw new Error("Manga does not exist");
+        if (!existingManga) throw new Error("Manga does not exist");
 
         await removeManga(name);
         interaction.editReply(`Removed ${name} from the list.`);
@@ -34,11 +34,11 @@ async function siteFromManga(interaction: CommandInteraction): Promise<void> {
         const manga = interaction.options.get("manga")?.value as string;
         const site = interaction.options.get("site")?.value as string;
         const existingManga = await getMangaFromName(manga);
-        if (existingManga.length === 0) throw new Error("Manga does not exist");
+        if (!existingManga) throw new Error("Manga does not exist");
         const existingSite = await getSiteFromName(site);
-        if (existingSite.length === 0) throw new Error("Site does not exist");
+        if (!existingSite) throw new Error("Site does not exist");
 
-        await removeSiteFromManga(existingSite[0].site, existingManga[0].name);
+        await removeSiteFromManga(existingSite.site, existingManga.name);
         interaction.editReply(`Removed ${site} from ${manga}.`);
     } catch (error) {
         interaction.editReply((error as Error).message);

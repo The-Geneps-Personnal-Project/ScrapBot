@@ -1,11 +1,10 @@
 import { MangaInfo, SiteInfo } from "../../types/types";
 import { getFromApi } from "../helper";
 
-export async function getSiteFromName(name: string): Promise<SiteInfo[]> {
+export async function getSiteFromName(name: string): Promise<SiteInfo> {
     if (!name) throw new Error("No name provided");
     try {
-        const site: SiteInfo[] = await getFromApi("site", { site: name });
-
+        const site: SiteInfo = await getFromApi(`sites/${name}`);
         return site;
     } catch {
         throw new Error("Site does not exist");
@@ -14,7 +13,7 @@ export async function getSiteFromName(name: string): Promise<SiteInfo[]> {
 
 export async function getAllSites(): Promise<SiteInfo[]> {
     try {
-        const sites: SiteInfo[] = await getFromApi("site");
+        const sites: SiteInfo[] = await getFromApi("sites");
 
         return sites;
     } catch (error) {
@@ -23,10 +22,10 @@ export async function getAllSites(): Promise<SiteInfo[]> {
     }
 }
 
-export async function getMangaFromName(name: string): Promise<MangaInfo[]> {
+export async function getMangaFromName(name: string): Promise<MangaInfo> {
     if (!name) throw new Error("No name provided");
     try {
-        const manga: MangaInfo[] = await getFromApi("manga", { name });
+        const manga: MangaInfo = await getFromApi(`mangas/${name}`);
 
         return manga;
     } catch {
@@ -36,7 +35,7 @@ export async function getMangaFromName(name: string): Promise<MangaInfo[]> {
 
 export async function getAllMangas(): Promise<MangaInfo[]> {
     try {
-        const mangas: MangaInfo[] = await getFromApi("manga");
+        const mangas: MangaInfo[] = await getFromApi("mangas");
 
         return mangas;
     } catch {

@@ -8,34 +8,33 @@ import { SiteInfo } from "../../types/types";
 async function changeManga(interaction: CommandInteraction): Promise<void> {
     try {
         const manga = await getMangaFromName(interaction.options.get("manga")?.value as string);
-        if (manga.length === 0) throw new Error("Manga does not exist");
+        if (!manga) throw new Error("Manga does not exist");
 
         if (interaction.options.get("key")?.value === "alert")
-            manga[0].alert = interaction.options.get("value")?.value as Number;
+            manga.alert = interaction.options.get("value")?.value as Number;
         else if (interaction.options.get("key")?.value === "chapter")
-            manga[0].chapter = interaction.options.get("value")?.value as string;
+            manga.chapter = interaction.options.get("value")?.value as string;
 
-        await updateMangaInfo(manga[0]);
+        await updateMangaInfo(manga);
         await interaction.editReply(
-            `Changed ${interaction.options.get("key")?.value} to ${interaction.options.get("value")?.value} for ${manga[0].name}.`
+            `Changed ${interaction.options.get("key")?.value} to ${interaction.options.get("value")?.value} for ${manga.name}.`
         );
     } catch (error) {
+        console.log(error);
         await interaction.editReply((error as Error).message);
     }
 }
 
 async function changeSite(interaction: CommandInteraction): Promise<void> {
     try {
-        let site = await getSiteFromName(
-            (interaction.options.get("site")?.value as string)
-        );
-        if (site.length === 0) throw new Error("Site does not exist");
+        let site = await getSiteFromName(interaction.options.get("site")?.value as string);
+        if (!site) throw new Error("Site does not exist");
 
         const new_site = await createSite(interaction.options.get("url")?.value as string);
 
         const toUpdate = {
-            id: site[0].id,
-            site: site[0].site,
+            id: site.id,
+            site: site.site,
             url: new_site.url,
             chapter_url: new_site.chapter_url,
             chapter_limiter: new_site.chapter_limiter,
@@ -43,10 +42,9 @@ async function changeSite(interaction: CommandInteraction): Promise<void> {
 
         await updateSiteInfo(toUpdate);
 
-        await interaction.editReply(
-            `Updated ${site[0].site}.`
-        );
+        await interaction.editReply(`Updated ${site.site}.`);
     } catch (error) {
+        console.log(error);
         await interaction.editReply((error as Error).message);
     }
 }
@@ -82,7 +80,11 @@ export default new Command({
                 .setName("site")
                 .setDescription("Update a site")
                 .addStringOption(option =>
-                    option.setName("site").setDescription("The name of the site").setRequired(true).setAutocomplete(true)
+                    option
+                        .setName("site")
+                        .setDescription("The name of the site")
+                        .setRequired(true)
+                        .setAutocomplete(true)
                 )
                 .addStringOption(option =>
                     option.setName("url").setDescription("The url of the site").setRequired(true)

@@ -10,11 +10,11 @@ async function site(interaction: CommandInteraction): Promise<void> {
     try {
         const url = interaction.options.get("url")?.value as string;
         const existingSite = await getSiteFromName(url.split("/")[2].split(".")[0]);
-        if (existingSite.length > 0) throw new Error("Site already exists");
+        if (existingSite) throw new Error("Site already exists");
 
         const site = await createSite(url);
         await addSite(site);
-        await interaction.editReply(`Added ${url.split("/")[2]} to the list.`);
+        await interaction.editReply(`Added ${site.site} to the list.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);
     }
@@ -26,10 +26,10 @@ async function manga(interaction: CommandInteraction): Promise<void> {
             anilist_id: interaction.options.get("anilist_id")?.value as number,
             chapter: interaction.options.get("chapter")?.value as string,
             name: interaction.options.get("name")?.value as string,
-            sites: await getSiteFromName(interaction.options.get("site")?.value as string),
+            sites: [await getSiteFromName(interaction.options.get("site")?.value as string)],
         };
         const existingManga = await getMangaFromName(manga.name);
-        if (existingManga.length > 0) throw new Error("Manga already exists");
+        if (existingManga) throw new Error("Manga already exists");
 
         await addManga(manga);
         await interaction.editReply(`Added ${manga.name} to the list.`);
@@ -43,11 +43,11 @@ async function siteToManga(interaction: CommandInteraction): Promise<void> {
         const manga = interaction.options.get("manga")?.value as string;
         const site = interaction.options.get("site")?.value as string;
         const existingManga = await getMangaFromName(manga);
-        if (existingManga.length === 0) throw new Error("Manga does not exist");
+        if (!existingManga) throw new Error("Manga does not exist");
         const existingSite = await getSiteFromName(site);
-        if (existingSite.length === 0) throw new Error("Site does not exist");
+        if (!existingSite) throw new Error("Site does not exist");
 
-        await addSiteToManga(existingSite[0].site, existingManga[0].name);
+        await addSiteToManga(existingSite.site, existingManga.name);
         await interaction.editReply(`Added ${site} to ${manga}.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);
@@ -69,7 +69,7 @@ export default new Command({
                     option.setName("chapter").setDescription("The last read chapter").setRequired(true)
                 )
                 .addStringOption(option =>
-                    option.setName("name").setDescription("THe name of the manga").setRequired(true)
+                    option.setName("name").setDescription("The name of the manga").setRequired(true)
                 )
                 .addStringOption(option =>
                     option
