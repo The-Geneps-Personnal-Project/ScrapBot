@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
 import { getMangaFromName, getSiteFromName, getAllMangas, getAllSites } from "../../API/queries/get";
 import { Command } from "../classes/command";
-import { createSite } from "../../API/seed";
+import { FetchSite } from "../../API/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
 import { SiteInfo } from "../../types/types";
 
@@ -30,7 +30,7 @@ async function changeSite(interaction: CommandInteraction): Promise<void> {
         let site = await getSiteFromName(interaction.options.get("site")?.value as string);
         if (!site) throw new Error("Site does not exist");
 
-        const new_site = await createSite(interaction.options.get("url")?.value as string);
+        const new_site = await FetchSite(interaction.options.get("url")?.value as string);
 
         const toUpdate = {
             id: site.id,
