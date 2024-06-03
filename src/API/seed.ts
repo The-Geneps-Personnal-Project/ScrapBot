@@ -1,40 +1,42 @@
-import puppeteer, {Page} from "puppeteer";
-import { addSite } from "./files";
-import { MangaInfo, SiteInfo } from "./types";
+import puppeteer, { Page } from "puppeteer";
+import { SiteInfo } from "../types/types";
 
 /**
  * @description Get the chapter limiter from the url
  * @param url The url to get the chapter limiter from
- * @returns 
+ * @returns
  */
 function getChapterLimiter(url: string): string {
     const index = url.indexOf("chapter");
 
-    if (index === -1) return ""
+    if (index === -1) return "";
 
     const before = index > 0 ? url.charAt(index - 1) : null;
     const after = index + "chapter".length < url.length ? url.charAt(index + "chapter".length) : null;
 
-    return before + "chapter" + after
+    return before + "chapter" + after;
 }
 
 /**
  * @description Normalize the URL by removing the last parts
  * @param url - URL to normalize
  * @param toRemove - Number of parts to remove from the url (From the end)
- * @returns 
+ * @returns
  */
-function normalizeURL(url: string, toRemove : number = 1): string {
+function normalizeURL(url: string, toRemove: number = 1): string {
     let normalized_url = url.endsWith("/") ? url.slice(0, -1) : url;
-    if (url[url.indexOf("chapter") - 1] === '-')
-        normalized_url = normalized_url.slice(0, normalized_url.indexOf("chapter") - 1) + "/" + normalized_url.slice(normalized_url.indexOf("chapter"))
-    const parts = normalized_url.split("/")
-    
-    toRemove = Math.min(toRemove, parts.length - 1)
+    if (url[url.indexOf("chapter") - 1] === "-")
+        normalized_url =
+            normalized_url.slice(0, normalized_url.indexOf("chapter") - 1) +
+            "/" +
+            normalized_url.slice(normalized_url.indexOf("chapter"));
+    const parts = normalized_url.split("/");
 
-    parts.splice(-toRemove, toRemove)
-    
-    return parts.join("/") + (parts.length === 2 ? "/" : "")
+    toRemove = Math.min(toRemove, parts.length - 1);
+
+    parts.splice(-toRemove, toRemove);
+
+    return parts.join("/") + (parts.length === 2 ? "/" : "");
 }
 
 /**
@@ -44,11 +46,11 @@ function normalizeURL(url: string, toRemove : number = 1): string {
  */
 export async function getChapterElement(page: Page): Promise<string> {
     const href = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a'));
+        const links = Array.from(document.querySelectorAll("a"));
         const targetLink = links.filter(link => link.textContent?.toLowerCase().includes("chapter"));
         return targetLink[3] ? targetLink[3].href : "";
     });
-    return href
+    return href;
 }
 
 /**
@@ -57,22 +59,24 @@ export async function getChapterElement(page: Page): Promise<string> {
  * @param selector - The selector to get the element from
  * @returns - The href of the element
  */
-export async function getElement(page: Page , selector: string): Promise<string> {
+export async function getElement(page: Page, selector: string): Promise<string> {
     const link = await page.evaluate((selector: string) => {
         const links = Array.from(document.querySelectorAll(selector));
 
-        const filteredLinks = links.filter((link) => {return link.querySelector("img")});
+        const filteredLinks = links.filter(link => {
+            return link.querySelector("img");
+        });
         return (filteredLinks[3] as HTMLAnchorElement).href; // Return the 3rd element to be sure to have a manga and not decorative image
     }, selector);
 
-    return link
+    return link;
 }
 
-export async function createSite(url: string): Promise<SiteInfo> {
+export async function FetchSite(url: string): Promise<SiteInfo> {
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
-        executablePath: "/usr/bin/chromium-browser",
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
 
     let siteInfo: SiteInfo = {} as SiteInfo;
@@ -92,12 +96,11 @@ export async function createSite(url: string): Promise<SiteInfo> {
 
             siteInfo = {
                 site: siteName,
-                url: listUrl + '/',
-                chapter_url: normalizeURL(chapterUrl, 2) + '/',
+                url: listUrl + "/",
+                chapter_url: normalizeURL(chapterUrl, 2) + "/",
                 chapter_limiter: chapterLimiter,
             };
-            console.log("Creating site:", siteInfo);
-            await addSite(siteInfo);
+            return siteInfo;
         }
     } catch (error) {
         console.error("Failed to create site:", error);
