@@ -3,7 +3,7 @@ CREATE TABLE mangas (
     anilist_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     chapter TEXT,
-    alert BOOLEAN DEFAULT FALSE
+    alert BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE sites (
@@ -11,8 +11,7 @@ CREATE TABLE sites (
     site TEXT NOT NULL,
     url TEXT NOT NULL,
     chapter_url TEXT NOT NULL,
-    chapter_limiter TEXT NOT NULL,
-    selector TEXT NOT NULL
+    chapter_limiter TEXT NOT NULL
 );
 
 CREATE TABLE manga_sites (

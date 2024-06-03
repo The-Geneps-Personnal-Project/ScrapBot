@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import env from "dotenv";
-import { GraphqlQuery, ScrapingResult } from "./types";
+import { GraphqlQuery, ScrapingResult } from "../../types/types";
 
 env.config({ path: __dirname + "/../.env" });
 
@@ -13,7 +13,6 @@ mutation ($mediaId: Int, $progress: Int) {
 `;
 
 export async function updateList(results: ScrapingResult[]): Promise<void> {
-
     for (const { manga, lastChapter } of results) {
         const progress = Number(lastChapter);
         const mediaId = manga.anilist_id;

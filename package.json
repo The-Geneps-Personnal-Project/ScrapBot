@@ -1,36 +1,36 @@
 {
-  "name": "scrapts",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
-  "scripts": {
-    "start": "node dist/bot.js",
-    "db": "sqlite3 stockage/database.sqlite3 < database.sql",
-    "seed": "node seeder.js",
-    "build": "tsc",
-    "lint": "eslint . --ext .ts",
-    "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\""
-  },
-  "dependencies": {
-    "@types/node": "^20.11.30",
-    "@typescript-eslint/eslint-plugin": "^7.4.0",
-    "@typescript-eslint/parser": "^7.4.0",
-    "axios": "^1.6.8",
-    "discord-api-types": "^0.37.77",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.2.5",
-    "puppeteer": "^22.6.1",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
-    "typescript": "^5.4.3"
-  },
-  "devDependencies": {
-    "@types/cron": "^2.4.0",
-    "cron": "^3.1.6"
-  }
+    "name": "scrapts",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "MIT",
+    "scripts": {
+        "start": "node dist/bot/bot.js",
+        "db": "sqlite3 stockage/database.sqlite3 < database.sql",
+        "seed": "node seeder.js",
+        "build": "tsc",
+        "lint": "eslint . --ext .ts",
+        "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\""
+    },
+    "dependencies": {
+        "@types/node": "^20.11.30",
+        "@typescript-eslint/eslint-plugin": "^7.4.0",
+        "@typescript-eslint/parser": "^7.4.0",
+        "axios": "^1.6.8",
+        "discord-api-types": "^0.37.77",
+        "discord.js": "^14.14.1",
+        "dotenv": "^16.4.5",
+        "eslint": "^8.57.0",
+        "eslint-config-prettier": "^9.1.0",
+        "prettier": "^3.2.5",
+        "puppeteer": "^22.6.1",
+        "puppeteer-extra": "^3.3.6",
+        "puppeteer-extra-plugin-stealth": "^2.11.2",
+        "require-all": "^3.0.0",
+        "typescript": "^5.4.3"
+    },
+    "devDependencies": {
+        "@types/cron": "^2.4.0",
+        "@types/require-all": "^3.0.6",
+        "cron": "^3.1.6"
+    }
 }
