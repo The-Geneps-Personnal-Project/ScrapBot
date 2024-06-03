@@ -117,7 +117,7 @@ export default new Command({
         let choices: { name: string; value: string }[] = [];
 
         if (focused.name === "manga")
-            choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
+            choices = (await getAllMangas()).filter(manga => manga.alert === 1).map(manga => ({ name: manga.name, value: manga.name }));
         else if (focused.name === "site")
             choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
         else if (focused.name === "key")
