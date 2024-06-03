@@ -46,9 +46,22 @@ function normalizeURL(url: string, toRemove: number = 1): string {
  */
 export async function getChapterElement(page: Page): Promise<string> {
     const href = await page.evaluate(() => {
+        let highestChapterNumber = -Infinity;
+        let highestChapterLink = "";
         const links = Array.from(document.querySelectorAll("a"));
         const targetLink = links.filter(link => link.textContent?.toLowerCase().includes("chapter"));
-        return targetLink[3] ? targetLink[3].href : "";
+        targetLink.forEach(link => {
+            const chapterMatch = link.textContent?.match(/(\d+(\.\d+)?)(?!.*\d)/);
+
+            if (chapterMatch) {
+                const chapterNumber = parseFloat(chapterMatch[1]);
+                if (chapterNumber > highestChapterNumber) {
+                    highestChapterNumber = chapterNumber;
+                    highestChapterLink = link.href;
+                }
+            }
+        })
+        return highestChapterLink ? highestChapterLink : "";
     });
     return href;
 }
