@@ -27,7 +27,6 @@ query ($id: Int){
 `;
 
 export async function getMangaInfos(id: Number): Promise<GraphqlQueryMediaOutput> {
-    console.log(process.env.ANILIST_TOKEN)
     const config = {
         method: "post",
         url: "https://graphql.anilist.co",
