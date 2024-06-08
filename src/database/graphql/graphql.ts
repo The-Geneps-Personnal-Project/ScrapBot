@@ -1,16 +1,55 @@
 import axios, { AxiosResponse } from "axios";
 import env from "dotenv";
-import { GraphqlQuery, ScrapingResult } from "../../types/types";
+import { GraphqlQuery, GraphqlQueryMediaOutput, ScrapingResult } from "../../types/types";
 
 env.config({ path: __dirname + "/../.env" });
 
-const query = `
+const mutationQuery = `
 mutation ($mediaId: Int, $progress: Int) {
     SaveMediaListEntry(mediaId: $mediaId, progress: $progress) {
         mediaId
     }
 }
 `;
+
+const mangaQuery = `
+query ($id: Int){
+    Media(id: $id) {
+      tags {
+        name
+      },
+      description,
+      coverImage {
+            medium
+      }
+    }
+  }
+`;
+
+export async function getMangaInfos(id: Number): Promise<GraphqlQueryMediaOutput> {
+    console.log(process.env.ANILIST_TOKEN)
+    const config = {
+        method: "post",
+        url: "https://graphql.anilist.co",
+        headers: {
+            Authorization: `Bearer ${process.env.ANILIST_TOKEN}`,
+            "Content-Type": "application/json",
+        },
+        data: JSON.stringify({
+            query: mangaQuery,
+            variables: { id: id },
+        } as GraphqlQuery),
+    };
+
+    return axios(config)
+        .then((response: AxiosResponse) => {
+            return response.data.data.Media as GraphqlQueryMediaOutput;
+        })
+        .catch(error => {
+            console.error(error.response?.data);
+            throw error;
+        });
+}
 
 export async function updateList(results: ScrapingResult[]): Promise<void> {
     for (const { manga, lastChapter } of results) {
@@ -27,7 +66,7 @@ export async function updateList(results: ScrapingResult[]): Promise<void> {
                 "Content-Type": "application/json",
             },
             data: JSON.stringify({
-                query,
+                query: mutationQuery,
                 variables: { mediaId, progress },
             } as GraphqlQuery),
         };

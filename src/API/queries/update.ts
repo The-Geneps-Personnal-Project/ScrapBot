@@ -5,7 +5,11 @@ export async function setMangasInfo(results: ScrapingResult[]): Promise<void> {
     if (!results) throw new Error("No results provided");
     try {
         results.forEach(async result => {
-            await putToApi("mangas/chapter", { name: result.manga.name, chapter: result.lastChapter });
+            await putToApi("mangas/chapter", {
+                name: result.manga.name,
+                chapter: result.lastChapter,
+                last_updated: new Date().toISOString(),
+            });
         });
     } catch (error) {
         console.error(`Failed to set mangas info:`, error);

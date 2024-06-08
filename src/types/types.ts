@@ -5,6 +5,8 @@ export interface MangaInfo {
     alert?: Number;
     chapter: string;
     name: string;
+    last_update?: string;
+    infos?: GraphqlQueryMediaOutput;
 }
 
 export interface SiteInfo {
@@ -32,8 +34,15 @@ export interface GraphqlQuery {
 }
 
 export interface GraphqlParams {
-    mediaId: number;
-    progress: number;
+    id?: number;
+    mediaId?: number;
+    progress?: number;
+}
+
+export interface GraphqlQueryMediaOutput {
+    tags: { name: string }[];
+    description: string;
+    coverImage: { medium: string };
 }
 
 export type ScrapingOutcome = [ScrapingResult[], ScrapingError[]];
