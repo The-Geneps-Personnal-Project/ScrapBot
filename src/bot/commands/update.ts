@@ -128,7 +128,9 @@ export default new Command({
                 { name: "false", value: "0" },
             ];
 
-        const filtered = choices.filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase())).slice(0, 25);
+        const filtered = choices
+            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            .slice(0, 25);
         await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },
 });
