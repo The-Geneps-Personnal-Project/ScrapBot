@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome } from "../types/types";
+import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, GraphqlQueryMediaOutput } from "../types/types";
 import { getChapterElement } from "../API/seed";
 import { getAllMangas } from "../API/queries/get";
 import { setMangasInfo } from "../API/queries/update";
@@ -10,12 +10,16 @@ import CustomClient from "../bot/classes/client";
 
 puppeteer.use(StealthPlugin());
 
-export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
-    const browser = await puppeteer.launch({
+async function startBrowser() {
+    return await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox"],
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
+}
+
+export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
+    const browser = await startBrowser();
 
     const scrapingResults: ScrapingResult[] = [];
     const scrapingErrors: ScrapingError[] = [];

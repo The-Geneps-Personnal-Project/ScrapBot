@@ -1,10 +1,11 @@
 import { CommandInteraction } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { MangaInfo } from "../../types/types";
+import { GraphqlQueryMediaOutput, MangaInfo } from "../../types/types";
 import { FetchSite } from "../../API/seed";
 import { Command } from "../classes/command";
 import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
 import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/queries/get";
+import { getMangaInfos } from "../../database/graphql/graphql";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
@@ -27,6 +28,9 @@ async function manga(interaction: CommandInteraction): Promise<void> {
             chapter: interaction.options.get("chapter")?.value as string,
             name: interaction.options.get("name")?.value as string,
             sites: [await getSiteFromName(interaction.options.get("site")?.value as string)],
+            infos: (await getMangaInfos(
+                interaction.options.get("anilist_id")?.value as number
+            )) as GraphqlQueryMediaOutput,
         };
         const existingManga = await getMangaFromName(manga.name);
         if (existingManga) throw new Error("Manga already exists");
