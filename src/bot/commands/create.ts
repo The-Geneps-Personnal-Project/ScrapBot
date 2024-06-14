@@ -10,10 +10,11 @@ import { getMangaInfos } from "../../database/graphql/graphql";
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
         const url = interaction.options.get("url")?.value as string;
-        const existingSite = await getSiteFromName(url.split("/")[2].split(".")[0]);
+        const completeUrl = url.startsWith("https") ? url : `https://${url}`;
+        const existingSite = await getSiteFromName(completeUrl.split("/")[2].split(".")[0]);
         if (existingSite) throw new Error("Site already exists");
 
-        const site = await FetchSite(url);
+        const site = await FetchSite(completeUrl);
         await addSite(site);
         await interaction.editReply(`Added ${site.site} to the list.`);
     } catch (error) {
@@ -135,12 +136,16 @@ export default new Command({
     },
     autocomplete: async interaction => {
         const focused = interaction.options.getFocused(true);
-        let choices: string[] = [];
+        let choices: { name: string; value: string }[] = [];
 
-        if (focused.name === "manga") choices = (await getAllMangas()).map(manga => manga.name);
-        else if (focused.name === "site") choices = (await getAllSites()).map(site => site.site);
+        if (focused.name === "manga")
+            choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
+        else if (focused.name === "site")
+            choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
 
-        const filtered = choices.filter(choice => choice.startsWith(focused.value));
-        await interaction.respond(filtered.map(choice => ({ name: choice, value: choice })));
+        const filtered = choices
+            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            .slice(0, 25);
+        await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },
 });

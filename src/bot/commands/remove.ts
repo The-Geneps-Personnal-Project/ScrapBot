@@ -117,12 +117,16 @@ export default new Command({
     },
     autocomplete: async interaction => {
         const focused = interaction.options.getFocused(true);
-        let choices: string[] = [];
+        let choices: { name: string; value: string }[] = [];
 
-        if (focused.name === "manga") choices = (await getAllMangas()).map(manga => manga.name);
-        else if (focused.name === "site") choices = (await getAllSites()).map(site => site.site);
+        if (focused.name === "manga")
+            choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
+        else if (focused.name === "site")
+            choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
 
-        const filtered = choices.filter(choice => choice.startsWith(focused.value));
-        await interaction.respond(filtered.map(choice => ({ name: choice, value: choice })));
+        const filtered = choices
+            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            .slice(0, 25);
+        await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },
 });
