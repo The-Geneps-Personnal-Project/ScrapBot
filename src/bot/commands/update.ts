@@ -30,7 +30,10 @@ async function changeSite(interaction: CommandInteraction): Promise<void> {
         let site = await getSiteFromName(interaction.options.get("site")?.value as string);
         if (!site) throw new Error("Site does not exist");
 
-        const new_site = await FetchSite(interaction.options.get("url")?.value as string);
+        const url = interaction.options.get("url")?.value as string;
+        const completeUrl = url.startsWith("https") ? url : `https://${url}`;
+
+        const new_site = await FetchSite(completeUrl);
 
         const toUpdate = {
             id: site.id,

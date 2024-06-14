@@ -6,7 +6,6 @@ export default new Command({
     builder: new SlashCommandBuilder().setName("run").setDescription("Run the scraping process"),
     run: async ({ client, interaction }) => {
         try {
-            await interaction.deferReply();
             await initiateScraping(client);
             await interaction.deleteReply();
         } catch (error) {

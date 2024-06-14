@@ -60,7 +60,7 @@ export async function getChapterElement(page: Page): Promise<string> {
                     highestChapterLink = link.href;
                 }
             }
-        })
+        });
         return highestChapterLink ? highestChapterLink : "";
     });
     return href;
@@ -99,7 +99,7 @@ export async function FetchSite(url: string): Promise<SiteInfo> {
         await page.goto(url, { waitUntil: "domcontentloaded" });
 
         const mainLink = await getElement(page, "a:has(img)");
-        const siteName = new URL(url).hostname.split(".")[0];
+        const siteName = new URL(url).hostname.split(".").filter(el => el != "www")[0];
 
         if (mainLink) {
             await page.goto(mainLink, { waitUntil: "domcontentloaded" });
