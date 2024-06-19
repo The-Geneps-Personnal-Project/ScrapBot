@@ -8,28 +8,9 @@ import { updateList } from "../database/graphql/graphql";
 import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
 import CustomClient from "../bot/classes/client";
 import { addSiteToManga } from "../API/queries/create";
-import { Page } from "puppeteer";
+import { replaceURL, isValidPage } from "../utils/utils";
 
 puppeteer.use(StealthPlugin());
-
-function replaceURL(url: string): string {
-    const withoutSpaces = url.replace(/ /g, "-");
-    return withoutSpaces.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase();
-}
-
-async function isValidPage(page: Page, url: string) : Promise<Boolean> {
-    const toUrl = page.url().replace(/\/$/, "")
-    const pageTitle = await page.title()
-
-    const possibleErrorMessages = ["404", "Not found", "Page not found", "Error", "Sorry"]
-    
-    if (toUrl !== url) return false
-    for (const messages of possibleErrorMessages) {
-        if (pageTitle.toLowerCase().includes(messages.toLowerCase()))
-            return false;
-    }
-    return true
-}
 
 async function startBrowser() {
     return await puppeteer.launch({
@@ -44,12 +25,11 @@ export async function scrapExistingSite(site: SiteInfo): Promise<void> {
     const mangas: MangaInfo[] = await getAllMangas();
 
     for (const manga of mangas) {
-        const url = site.url + replaceURL(manga.name)
+        const url = site.url + replaceURL(manga.name);
         const page = await browser.newPage();
 
-        await page.goto(url, {waitUntil: "domcontentloaded"});
-        if (await isValidPage(page, url.replace(/\/$/, "")))
-            await addSiteToManga(site.site, manga.name)
+        await page.goto(url, { waitUntil: "domcontentloaded" });
+        if (await isValidPage(page, url.replace(/\/$/, ""))) await addSiteToManga(site.site, manga.name);
     }
 }
 

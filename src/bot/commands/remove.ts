@@ -2,6 +2,7 @@ import { SlashCommandBuilder, CommandInteraction } from "discord.js";
 import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../API/queries/get";
 import { removeManga, removeSite, removeSiteFromManga } from "../../API/queries/delete";
 import { Command } from "../classes/command";
+import { isStringSimilarity } from "../../utils/utils";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
@@ -125,7 +126,11 @@ export default new Command({
             choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
 
         const filtered = choices
-            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            .filter(choice =>  {
+                const choiceText = choice.name.toLowerCase();
+                const similarity = isStringSimilarity(choiceText, focused.value.toLowerCase());
+                return similarity >= 0.5;
+            })
             .slice(0, 25);
         await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },

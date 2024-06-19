@@ -4,6 +4,7 @@ import { Command } from "../classes/command";
 import { FetchSite } from "../../API/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
 import { SiteInfo } from "../../types/types";
+import { isStringSimilarity } from "../../utils/utils";
 
 async function changeManga(interaction: CommandInteraction): Promise<void> {
     try {
@@ -131,8 +132,12 @@ export default new Command({
                 { name: "false", value: "0" },
             ];
 
-        const filtered = choices
-            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            const filtered = choices
+            .filter(choice =>  {
+                const choiceText = choice.name.toLowerCase();
+                const similarity = isStringSimilarity(choiceText, focused.value.toLowerCase());
+                return similarity >= 0.5;
+            })
             .slice(0, 25);
         await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },
