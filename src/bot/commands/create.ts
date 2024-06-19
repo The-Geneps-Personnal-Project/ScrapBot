@@ -6,6 +6,7 @@ import { Command } from "../classes/command";
 import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
 import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/queries/get";
 import { getMangaInfos } from "../../database/graphql/graphql";
+import { scrapExistingSite } from "../../scrap/scraping";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
@@ -16,6 +17,7 @@ async function site(interaction: CommandInteraction): Promise<void> {
 
         const site = await FetchSite(completeUrl);
         await addSite(site);
+        await scrapExistingSite(site);
         await interaction.editReply(`Added ${site.site} to the list.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);
