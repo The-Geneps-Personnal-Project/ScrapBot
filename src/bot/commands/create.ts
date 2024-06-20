@@ -6,6 +6,8 @@ import { Command } from "../classes/command";
 import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
 import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/queries/get";
 import { getMangaInfos } from "../../database/graphql/graphql";
+import { scrapExistingSite } from "../../scrap/scraping";
+import { isStringSimilarity } from "../../utils/utils";
 
 async function site(interaction: CommandInteraction): Promise<void> {
     try {
@@ -16,6 +18,7 @@ async function site(interaction: CommandInteraction): Promise<void> {
 
         const site = await FetchSite(completeUrl);
         await addSite(site);
+        await scrapExistingSite(site);
         await interaction.editReply(`Added ${site.site} to the list.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);
@@ -144,7 +147,11 @@ export default new Command({
             choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
 
         const filtered = choices
-            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            .filter(choice =>  {
+                const choiceText = choice.name.toLowerCase();
+                const similarity = isStringSimilarity(choiceText, focused.value.toLowerCase());
+                return similarity >= 0.5;
+            })
             .slice(0, 25);
         await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },

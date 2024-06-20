@@ -1,12 +1,14 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, GraphqlQueryMediaOutput } from "../types/types";
+import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo } from "../types/types";
 import { getChapterElement } from "../API/seed";
 import { getAllMangas } from "../API/queries/get";
 import { setMangasInfo } from "../API/queries/update";
 import { updateList } from "../database/graphql/graphql";
 import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
 import CustomClient from "../bot/classes/client";
+import { addSiteToManga } from "../API/queries/create";
+import { replaceURL, isValidPage } from "../utils/utils";
 
 puppeteer.use(StealthPlugin());
 
@@ -16,6 +18,19 @@ async function startBrowser() {
         args: ["--no-sandbox"],
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     });
+}
+
+export async function scrapExistingSite(site: SiteInfo): Promise<void> {
+    const browser = await startBrowser();
+    const mangas: MangaInfo[] = await getAllMangas();
+
+    for (const manga of mangas) {
+        const url = site.url + replaceURL(manga.name);
+        const page = await browser.newPage();
+
+        await page.goto(url, { waitUntil: "domcontentloaded" });
+        if (await isValidPage(page, url.replace(/\/$/, ""))) await addSiteToManga(site.site, manga.name);
+    }
 }
 
 export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
@@ -37,11 +52,11 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
             try {
                 await page.goto(site.url, { waitUntil: "domcontentloaded" });
 
-                const lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-1) ?? "");
+                const lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-1) ?? "", site);
 
                 const lastChapterTextMatch = lastChapterText?.match(/(\d+(\.\d+)?)(?!.*\d)/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0]) : NaN;
-
+                
                 console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter);
 
                 if (!isNaN(lastChapter)) {
@@ -71,7 +86,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 error: "Failed to scrape any site for updates.",
             });
         }
-        await new Promise(f => setTimeout(f, 1000 * 30)); //Waits 30 seconds between each manga
+        await new Promise(f => setTimeout(f, 1000 * 15)); //Waits 30 seconds between each manga
     }
 
     await browser.close();
