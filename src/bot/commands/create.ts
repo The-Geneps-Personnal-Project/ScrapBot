@@ -31,7 +31,7 @@ async function manga(interaction: CommandInteraction): Promise<void> {
             anilist_id: interaction.options.get("anilist_id")?.value as number,
             chapter: interaction.options.get("chapter")?.value as string,
             name: interaction.options.get("name")?.value as string,
-            sites: [await getSiteFromName(interaction.options.get("site")?.value as string)],
+            sites: [],
             infos: (await getMangaInfos(
                 interaction.options.get("anilist_id")?.value as number
             )) as GraphqlQueryMediaOutput,
@@ -40,6 +40,7 @@ async function manga(interaction: CommandInteraction): Promise<void> {
         if (existingManga) throw new Error("Manga already exists");
 
         await addManga(manga);
+        await scrapExistingSite(manga);
         await interaction.editReply(`Added ${manga.name} to the list.`);
     } catch (error) {
         await interaction.editReply((error as Error).message);
@@ -78,13 +79,6 @@ export default new Command({
                 )
                 .addStringOption(option =>
                     option.setName("name").setDescription("The name of the manga").setRequired(true)
-                )
-                .addStringOption(option =>
-                    option
-                        .setName("site")
-                        .setDescription("The site of the manga")
-                        .setRequired(true)
-                        .setAutocomplete(true)
                 )
         )
         .addSubcommand(subcommand =>
