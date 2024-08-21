@@ -53,6 +53,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
 
         let maxChapter = Number(manga.chapter);
         let maxChapterSite = null;
+        let lastChaptertext = "";
         let encounteredErrors = false;
         let foundNewChapter = false;
 
@@ -88,6 +89,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 manga,
                 lastChapter: maxChapter.toString(),
                 site: maxChapterSite,
+                url: lastChaptertext
             });
         } else if (!foundNewChapter && encounteredErrors) {
             scrapingErrors.push({

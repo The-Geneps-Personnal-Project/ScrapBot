@@ -21,6 +21,7 @@ export interface ScrapingResult {
     manga: MangaInfo;
     lastChapter: string;
     site: SiteInfo;
+    url: string;
 }
 
 export interface ScrapingError {

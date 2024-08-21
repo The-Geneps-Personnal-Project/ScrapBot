@@ -9,6 +9,7 @@ async function getBackup(channels: TextChannel): Promise<Number> {
 export default new Event({
     name: "messageDelete",
     run: async (client, message) => {
+        if (!message.author.bot) return;
         const d = new Date();
         const channel = client.chans.get("backup") as TextChannel;
 
