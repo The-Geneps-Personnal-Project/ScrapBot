@@ -2,7 +2,7 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo } from "../types/types";
 import { getChapterElement } from "../API/seed";
-import { getAllMangas } from "../API/queries/get";
+import { getAllMangas, getAllSites } from "../API/queries/get";
 import { setMangasInfo } from "../API/queries/update";
 import { updateList } from "../database/graphql/graphql";
 import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
@@ -20,16 +20,25 @@ async function startBrowser() {
     });
 }
 
-export async function scrapExistingSite(site: SiteInfo): Promise<void> {
+export async function scrapExistingSite(site: SiteInfo): Promise<void>
+export async function scrapExistingSite(manga: MangaInfo): Promise<void>
+export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<void> {
     const browser = await startBrowser();
-    const mangas: MangaInfo[] = await getAllMangas();
 
-    for (const manga of mangas) {
+    const items = 'url' in data ? await getAllMangas() : await getAllSites();
+    const isSite = (item: any): item is SiteInfo => 'url' in item;
+
+    for (const item of items) {
+        const site = isSite(data) ? data : item as SiteInfo;
+        const manga = isSite(data) ? item as MangaInfo : data;
         const url = site.url + replaceURL(manga.name);
+        
         const page = await browser.newPage();
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-        await page.goto(url, { waitUntil: "domcontentloaded" });
-        if (await isValidPage(page, url.replace(/\/$/, ""))) await addSiteToManga(site.site, manga.name);
+        if (await isValidPage(page, url.replace(/\/$/, ''))) {
+            await addSiteToManga(site.site, manga.name);
+        }
     }
 }
 
