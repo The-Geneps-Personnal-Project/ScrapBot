@@ -51,7 +51,7 @@ export async function getChapterElement(page: Page, name?: string, site?: SiteIn
         const links = Array.from(document.querySelectorAll("a"));
         const targetLink = links.filter(link => link.textContent?.toLowerCase().includes("chapter"));
         targetLink.forEach(link => {
-            const chapterMatch = link.textContent?.match(/(\d+(\.\d+)?)(?!.*\d)/);
+            const chapterMatch = link.textContent?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
             if (chapterMatch && (site ? link.href.includes(site.chapter_url): true) && (name ? link.href?.includes(name) : true)) {
                 const chapterNumber = parseFloat(chapterMatch[1]);
                 if (chapterNumber > highestChapterNumber) {
