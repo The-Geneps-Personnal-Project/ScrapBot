@@ -54,7 +54,7 @@ export async function getMangaInfos(id: Number): Promise<GraphqlQueryMediaOutput
 
 export async function updateList(results: ScrapingResult[]): Promise<void> {
     for (const { manga, lastChapter } of results) {
-        const progress = Number(lastChapter);
+        const progress = parseInt(lastChapter);
         const mediaId = manga.anilist_id;
 
         if (isNaN(progress) || mediaId === 0) continue;
