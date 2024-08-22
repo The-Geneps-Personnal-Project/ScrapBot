@@ -53,7 +53,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
 
         let maxChapter = Number(manga.chapter);
         let maxChapterSite = null;
-        let lastChaptertext = "";
+        let lastChapterText = "";
         let encounteredErrors = false;
         let foundNewChapter = false;
 
@@ -62,7 +62,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
             try {
                 await page.goto(site.url, { waitUntil: "domcontentloaded" });
 
-                const lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-1) ?? "", site);
+                lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-1) ?? "", site);
 
                 const lastChapterTextMatch = lastChapterText?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0].replace('-', '.')) : NaN;
@@ -89,7 +89,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 manga,
                 lastChapter: maxChapter.toString(),
                 site: maxChapterSite,
-                url: lastChaptertext
+                url: lastChapterText
             });
         } else if (!foundNewChapter && encounteredErrors) {
             scrapingErrors.push({
