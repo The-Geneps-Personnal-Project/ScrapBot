@@ -1,5 +1,5 @@
 import puppeteer, { Page } from "puppeteer";
-import { SiteInfo } from "../types/types";
+import { MangaInfo, SiteInfo } from "../types/types";
 
 /**
  * @description Get the chapter limiter from the url
@@ -44,7 +44,7 @@ function normalizeURL(url: string, toRemove: number = 1): string {
  * @param page - The page to get the chapter element from
  * @returns - The href of the chapter element
  */
-export async function getChapterElement(page: Page, name?: string, site?: SiteInfo): Promise<string> {
+export async function getChapterElement(page: Page, name?: string, site?: SiteInfo, manga?: MangaInfo): Promise<string> {
     const href = await page.evaluate((name:string, site:SiteInfo) => {
         let highestChapterNumber = -Infinity;
         let highestChapterLink = "";
@@ -54,7 +54,7 @@ export async function getChapterElement(page: Page, name?: string, site?: SiteIn
             const chapterMatch = link.textContent?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
             if (chapterMatch && (site ? link.href.includes(site.chapter_url): true) && (name ? link.href?.includes(name) : true)) {
                 const chapterNumber = parseFloat(chapterMatch[1]);
-                if (chapterNumber > highestChapterNumber) {
+                if (chapterNumber > highestChapterNumber && (chapterNumber - 20) < parseFloat(manga?.chapter || "0")) {
                     highestChapterNumber = chapterNumber;
                     highestChapterLink = link.href;
                 }
