@@ -1,4 +1,4 @@
-import { CommandInteraction } from "discord.js";
+import { CommandInteraction, EmbedBuilder } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { GraphqlQueryMediaOutput, MangaInfo } from "../../types/types";
 import { FetchSite } from "../../API/seed";
@@ -18,8 +18,18 @@ async function site(interaction: CommandInteraction): Promise<void> {
 
         const site = await FetchSite(completeUrl);
         await addSite(site);
-        await scrapExistingSite(site);
-        await interaction.editReply(`Added ${site.site} to the list.`);
+        const [nbr, list] = await scrapExistingSite(site);
+        const embed = new EmbedBuilder()
+            .setTitle(site.site)
+            .setDescription(`Added to the list. ${nbr} mangas linked.`)
+            .addFields(
+                ...list.map((manga: string) => ({
+                    name: manga,
+                    value: " ",
+                    inline: true,
+                })))
+            .setColor("#00FF00");
+        await interaction.editReply({ embeds: [embed] });
     } catch (error) {
         await interaction.editReply((error as Error).message);
     }
@@ -40,8 +50,18 @@ async function manga(interaction: CommandInteraction): Promise<void> {
         if (existingManga) throw new Error("Manga already exists");
 
         await addManga(manga);
-        await scrapExistingSite(manga);
-        await interaction.editReply(`Added ${manga.name} to the list.`);
+        const [nbr, list] = await scrapExistingSite(manga);
+        const embed = new EmbedBuilder()
+            .setTitle(manga.name)
+            .setDescription(`Added to the list. ${nbr} sites linked.`)
+            .addFields(
+                ...list.map((site: string) => ({
+                    name: site,
+                    value: " ",
+                    inline: true,
+                })))
+            .setColor("#00FF00");
+        await interaction.editReply({ embeds: [embed] });
     } catch (error) {
         await interaction.editReply((error as Error).message);
     }

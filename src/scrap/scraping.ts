@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo } from "../types/types";
+import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo, linkResult } from "../types/types";
 import { getChapterElement } from "../API/seed";
 import { getAllMangas, getAllSites } from "../API/queries/get";
 import { setMangasInfo } from "../API/queries/update";
@@ -20,13 +20,16 @@ async function startBrowser() {
     });
 }
 
-export async function scrapExistingSite(site: SiteInfo): Promise<void>
-export async function scrapExistingSite(manga: MangaInfo): Promise<void>
-export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<void> {
+export async function scrapExistingSite(site: SiteInfo): Promise<linkResult>
+export async function scrapExistingSite(manga: MangaInfo): Promise<linkResult>
+export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<linkResult> {
     const browser = await startBrowser();
 
     const items = 'url' in data ? await getAllMangas() : await getAllSites();
     const isSite = (item: any): item is SiteInfo => 'url' in item;
+
+    let count = 0;
+    let list = [];
 
     for (const item of items) {
         const site = isSite(data) ? data : item as SiteInfo;
@@ -38,8 +41,12 @@ export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<voi
 
         if (await isValidPage(page, url.replace(/\/$/, ''))) {
             await addSiteToManga(site.site, manga.name);
+            count++;
+            list.push(isSite(data) ? manga.name : site.site);
         }
     }
+
+    return [count, list];
 }
 
 export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {

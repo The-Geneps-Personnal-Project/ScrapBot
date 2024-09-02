@@ -47,3 +47,5 @@ export interface GraphqlQueryMediaOutput {
 }
 
 export type ScrapingOutcome = [ScrapingResult[], ScrapingError[]];
+
+export type linkResult = [number, string[]];
