@@ -45,7 +45,7 @@ function normalizeURL(url: string, toRemove: number = 1): string {
  * @returns - The href of the chapter element
  */
 export async function getChapterElement(page: Page, name?: string, site?: SiteInfo, manga?: MangaInfo): Promise<string> {
-    const href = await page.evaluate((name:string, site:SiteInfo) => {
+    const href = await page.evaluate((name:string, site:SiteInfo, manga:MangaInfo) => {
         let highestChapterNumber = -Infinity;
         let highestChapterLink = "";
         const links = Array.from(document.querySelectorAll("a"));
@@ -61,7 +61,7 @@ export async function getChapterElement(page: Page, name?: string, site?: SiteIn
             }
         });
         return highestChapterLink ? highestChapterLink : "";
-    }, name as string, site as SiteInfo);
+    }, name as string, site as SiteInfo, manga as MangaInfo);
     return href;
 }
 
