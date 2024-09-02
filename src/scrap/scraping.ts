@@ -60,7 +60,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
         for (const site of manga.sites) {
             const page = await browser.newPage();
             try {
-                await page.goto(site.url, { waitUntil: "domcontentloaded" });
+                await page.goto(site.url, { waitUntil: "networkidle2" });
                 console.log(`${page.url()} ${site.url}`); // Temp console log to debug problem specific to the server to check runtime values
 
                 if (!page.url().includes(site.url)) continue;
