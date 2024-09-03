@@ -73,7 +73,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
 
                 lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-2) ?? "", site, manga);
 
-                const lastChapterTextMatch = lastChapterText?.match(/(\d+(?:[\.-]\d+)?)/);
+                const lastChapterTextMatch = lastChapterText?.replace(/\/$/, '')?.split('/').at(-1)?.match(/(\d+(?:[\.-]\d+)?)/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0].replace('-', '.')) : NaN;
                 
                 console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter);
