@@ -68,13 +68,12 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
             const page = await browser.newPage();
             try {
                 await page.goto(site.url + "/", { waitUntil: "networkidle2", timeout: 0 });
-                console.log(`${page.url()} ${site.url}`); // Temp console log to debug problem specific to the server to check runtime values
 
                 if (!page.url().includes(site.url)) continue;
 
                 lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-2) ?? "", site, manga);
 
-                const lastChapterTextMatch = lastChapterText?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
+                const lastChapterTextMatch = lastChapterText?.match(/(\d+(?:[\.-]\d+)?)/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0].replace('-', '.')) : NaN;
                 
                 console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter);
