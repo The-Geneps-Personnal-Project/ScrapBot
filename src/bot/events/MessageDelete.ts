@@ -10,8 +10,9 @@ export default new Event({
     name: "messageDelete",
     run: async (client, message) => {
         if (!message.author.bot) return;
-        const d = new Date();
         const channel = client.chans.get("backup") as TextChannel;
+
+        if (message.id !== channel.id) return;
 
         const backupNumber = await getBackup(channel);
         const embed = new EmbedBuilder()

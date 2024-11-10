@@ -20,8 +20,6 @@ async function startBrowser() {
     });
 }
 
-export async function scrapExistingSite(site: SiteInfo): Promise<linkResult>
-export async function scrapExistingSite(manga: MangaInfo): Promise<linkResult>
 export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<linkResult> {
     const browser = await startBrowser();
 
@@ -49,7 +47,7 @@ export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<lin
     return [count, list];
 }
 
-export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOutcome> {
+export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
     const browser = await startBrowser();
 
     const scrapingResults: ScrapingResult[] = [];
@@ -77,7 +75,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 const lastChapterTextMatch = lastChapterText?.replace(/\/$/, '')?.split('/').at(-1)?.match(/(\d+(?:[\.-]\d+)?)/);
                 const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0].replace('-', '.')) : NaN;
                 
-                console.log(`Scraped ${manga.name} at ${site.url}:`, lastChapter);
+                client.logger(`Scraped ${manga.name} at ${site.url}: ${lastChapter}`);
 
                 if (!isNaN(lastChapter)) {
                     foundNewChapter = true;
@@ -89,7 +87,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 }
             } catch (error) {
                 encounteredErrors = true;
-                console.error(`Error scraping ${manga.name} at ${site.url}:`, error);
+                client.logger(`Error scraping ${manga.name} at ${site.url}: ${error}`);
             } finally {
                 await page.close();
             }
@@ -108,7 +106,7 @@ export async function scrapeSiteInfo(elements: MangaInfo[]): Promise<ScrapingOut
                 error: "Failed to scrape any site for updates.",
             });
         }
-        await new Promise(f => setTimeout(f, 1000 * 15)); //Waits 30 seconds between each manga
+        await new Promise(f => setTimeout(f, 1000 * 7.5)); //Waits 7.5 seconds between each loop
     }
 
     await browser.close();
@@ -120,7 +118,7 @@ export async function initiateScraping(client: CustomClient) {
 
     await client.chans.get("updates")?.bulkDelete(100);
 
-    const [result, errors] = await scrapeSiteInfo(mangas);
+    const [result, errors] = await scrapeSiteInfo(client, mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, client);
     if (result && result.length > 0) {
         try {
@@ -128,7 +126,7 @@ export async function initiateScraping(client: CustomClient) {
             setMangasInfo(result);
             await updateList(result);
         } catch (error) {
-            console.error(`Failed to update:`, error);
+            client.logger(`Failed to update: ${error}`);
         }
     } else {
         client.chans.get("updates")?.send("No new chapters found.");

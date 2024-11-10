@@ -53,7 +53,7 @@ export async function getChapterElement(page: Page, name?: string, site?: SiteIn
         targetLink.forEach(link => {
             const chapterMatch = link.textContent?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
             if (chapterMatch && (site ? link.href.includes(site.chapter_url): true) && (name ? link.href?.includes(name) : true)) {
-                const chapterNumber = parseFloat(chapterMatch[1]);
+                const chapterNumber = parseFloat(chapterMatch[1].replace("-", "."));
                 if (chapterNumber > highestChapterNumber && (chapterNumber - 20) < parseFloat(manga?.chapter || "0")) {
                     highestChapterNumber = chapterNumber;
                     highestChapterLink = link.href;

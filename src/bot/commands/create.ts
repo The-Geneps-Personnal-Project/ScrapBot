@@ -141,7 +141,9 @@ export default new Command({
 
         try {
             await subcommands[subcommand](interaction);
+            client.logger(`Created ${subcommand}.`);
         } catch (error) {
+            client.logger(`Failed to create ${subcommand}: ${(error as Error).message}`);
             if (!interaction.replied) {
                 await interaction
                     .followUp({ content: `Error: ${(error as Error).message}`, ephemeral: true })

@@ -106,7 +106,9 @@ export default new Command({
 
         try {
             await subcommands[subcommand](interaction);
+            client.logger(`Updated ${subcommand}.`);
         } catch (error) {
+            client.logger(`Failed to update ${subcommand}: ${(error as Error).message}`);
             if (!interaction.replied) {
                 await interaction
                     .followUp({ content: `Error: ${(error as Error).message}`, ephemeral: true })

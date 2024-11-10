@@ -6,6 +6,7 @@ import { Event } from "./classes/events";
 export function handleEvent(client: CustomClient, event: Event) {
     const avoidException = async (...args: any) => {
         try {
+            client.logger(`Running '${event.name}' event.`);
             await event.run(client, ...args);
         } catch (error) {
             console.error(`An error occurred in '${event.name}' event.\n${error}\n`);
@@ -28,6 +29,7 @@ export async function handleCommand(client: CustomClient, interaction: CommandIn
         });
 
     try {
+        client.logger(`Running '${command.builder.name}' command.`);
         await command.run({
             client,
             interaction: interaction as ChatInputCommandInteraction,

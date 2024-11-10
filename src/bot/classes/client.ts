@@ -34,6 +34,10 @@ export default class CustomClient extends Client {
         }
     }
 
+    logger(message: string) {
+        console.log(`[${new Date().toLocaleString()}] ${message}`);
+    }
+
     async resolveModules() {
         const sharedSettings = {
             recursive: true,
@@ -46,7 +50,7 @@ export default class CustomClient extends Client {
             dirname: path.join(__dirname, "../commands"),
             resolve: x => {
                 const command = x.default as Command;
-                console.log(`Command '${command.builder.name}' registered.`);
+                this.logger(`Command '${command.builder.name}' registered.`);
                 this.commands.set(command.builder.name, command);
             },
         });
@@ -57,7 +61,7 @@ export default class CustomClient extends Client {
             dirname: path.join(__dirname, "../events"),
             resolve: x => {
                 const event = x.default as Event;
-                console.log(`Event '${event.name}' registered.`);
+                this.logger(`Event '${event.name}' registered.`);
                 handleEvent(this, event);
             },
         });
