@@ -16,7 +16,7 @@ export async function getFromApi<T>(endpoint: string): Promise<T> {
         return response.data;
     } catch (error) {
         console.error("Failed to fetch from API:", error);
-        throw error as AxiosError;
+        throw (error as AxiosError).message;
     }
 }
 
@@ -33,7 +33,7 @@ export async function postToApi<T>(
         return response.data;
     } catch (error) {
         console.error("Failed to post to API:", error);
-        throw error as AxiosError;
+        throw (error as AxiosError).message;
     }
 }
 
@@ -50,7 +50,7 @@ export async function putToApi<T>(
         return response.data;
     } catch (error) {
         console.error("Failed to put to API:", error);
-        throw error as AxiosError;
+        throw (error as AxiosError).message;
     }
 }
 
@@ -63,6 +63,6 @@ export async function deleteFromApi<T>(endpoint: string, params?: Record<string,
         return response.data;
     } catch (error) {
         console.error("Failed to delete from API:", error);
-        throw error as AxiosError;
+        throw (error as AxiosError).message;
     }
 }

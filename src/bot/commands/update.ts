@@ -5,6 +5,7 @@ import { FetchSite } from "../../API/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
 import { SiteInfo } from "../../types/types";
 import { isStringSimilarity } from "../../utils/utils";
+import { scrapExistingSite } from "../../scrap/scraping";
 
 async function changeManga(interaction: CommandInteraction): Promise<void> {
     try {
@@ -53,6 +54,30 @@ async function changeSite(interaction: CommandInteraction): Promise<void> {
     }
 }
 
+async function updateMangaAllSites(interaction: CommandInteraction): Promise<void> {
+    try {
+        const value = interaction.options.get("manga")?.value as string;
+        const mangas = value === "all" ? await getAllMangas() : [await getMangaFromName(value)];
+        const allSites = await getAllSites();
+        const res: [string, string[]][] = [];
+        
+        for (let manga of mangas) {
+            const newSites = allSites.filter(site => !manga.sites.some(s => s.site === site.site));
+            const [count, list] = await scrapExistingSite(manga, newSites);
+            res.push([manga.name, list]);
+            await new Promise(f => setTimeout(f, 1000 * 7.5));
+        }
+
+        await interaction.editReply(
+            res.map(([manga, list]) => "Added to " + manga + ": " + list.join(", ")).join("\n")
+        );
+
+    } catch (error) {
+        console.error(`Failed to update manga sites:`, error);
+        throw error;
+    }
+}
+
 export default new Command({
     builder: new SlashCommandBuilder()
         .setName("update")
@@ -93,6 +118,18 @@ export default new Command({
                 .addStringOption(option =>
                     option.setName("url").setDescription("The url of the site").setRequired(true)
                 )
+        )
+        .addSubcommand(subcommand => 
+            subcommand
+                .setName("all")
+                .setDescription("Update all sites of a manga")
+                .addStringOption(option =>
+                    option
+                        .setName("manga")
+                        .setDescription("The name of the manga")
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
         ) as SlashCommandBuilder,
     run: async ({ client, interaction }) => {
         if (!interaction.deferred && !interaction.replied) {
@@ -102,6 +139,7 @@ export default new Command({
         const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
             manga: changeManga,
             site: changeSite,
+            all: updateMangaAllSites
         };
 
         try {

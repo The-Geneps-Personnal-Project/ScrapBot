@@ -18,7 +18,7 @@ async function site(interaction: CommandInteraction): Promise<void> {
 
         const site = await FetchSite(completeUrl);
         await addSite(site);
-        const [nbr, list] = await scrapExistingSite(site);
+        const [nbr, list] = await scrapExistingSite(site, []);
         const embed = new EmbedBuilder()
             .setTitle(site.site)
             .setDescription(`Added to the list. ${nbr} mangas linked.`)
@@ -50,7 +50,7 @@ async function manga(interaction: CommandInteraction): Promise<void> {
         if (existingManga) throw new Error("Manga already exists");
 
         await addManga(manga);
-        const [nbr, list] = await scrapExistingSite(manga);
+        const [nbr, list] = await scrapExistingSite(manga, []);
         const embed = new EmbedBuilder()
             .setTitle(manga.name)
             .setDescription(`Added to the list. ${nbr} sites linked.`)

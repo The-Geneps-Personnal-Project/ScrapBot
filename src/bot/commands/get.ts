@@ -34,7 +34,7 @@ export default new Command({
                 )
             
             await interaction.editReply({ embeds: [embed] })
-            client.logger(`Got ${manga}.`);
+            client.logger(`Got ${JSON.stringify(manga)}.`);
         } catch (error) {
             client.logger(`Failed to get manga: ${(error as Error).message}`);
             if (!interaction.replied) {

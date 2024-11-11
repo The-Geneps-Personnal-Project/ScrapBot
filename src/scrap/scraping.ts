@@ -20,32 +20,46 @@ async function startBrowser() {
     });
 }
 
-export async function scrapExistingSite(data: SiteInfo | MangaInfo): Promise<linkResult> {
+export async function scrapExistingSite(
+    data: SiteInfo | MangaInfo,
+    exceptions: SiteInfo[] | MangaInfo[]
+): Promise<linkResult> {
     const browser = await startBrowser();
 
+    // Determine if data is a Site or a Manga
     const items = 'url' in data ? await getAllMangas() : await getAllSites();
     const isSite = (item: any): item is SiteInfo => 'url' in item;
 
+    const filteredItems = exceptions.length > 0 ? exceptions: items;
+
     let count = 0;
-    let list = [];
+    let list: string[] = [];
 
-    for (const item of items) {
-        const site = isSite(data) ? data : item as SiteInfo;
-        const manga = isSite(data) ? item as MangaInfo : data;
+    for (const item of filteredItems) {
+        const site = isSite(data) ? data : (item as SiteInfo);
+        const manga = isSite(data) ? (item as MangaInfo) : data;
         const url = site.url + replaceURL(manga.name);
-        
-        const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-        if (await isValidPage(page, url.replace(/\/$/, ''))) {
-            await addSiteToManga(site.site, manga.name);
-            count++;
-            list.push(isSite(data) ? manga.name : site.site);
+        try {
+            const page = await browser.newPage();
+            await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+            if (await isValidPage(page, url.replace(/\/$/, ''))) {
+                await addSiteToManga(site.site, manga.name);
+                count++;
+                list.push(isSite(data) ? manga.name : site.site);
+            }
+
+            await page.close();
+        } catch (error) {
+            console.error(`Failed to scrap ${site.site} for ${manga.name}: ${error}`);
         }
     }
 
+    await browser.close()
     return [count, list];
 }
+
 
 export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
     const browser = await startBrowser();
