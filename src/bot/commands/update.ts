@@ -6,6 +6,7 @@ import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
 import { SiteInfo } from "../../types/types";
 import { isStringSimilarity } from "../../utils/utils";
 import { scrapExistingSite } from "../../scrap/scraping";
+import { getMangaInfos } from "../../database/graphql/graphql";
 
 async function changeManga(interaction: CommandInteraction): Promise<void> {
     try {
@@ -54,7 +55,7 @@ async function changeSite(interaction: CommandInteraction): Promise<void> {
     }
 }
 
-async function updateMangaAllSites(interaction: CommandInteraction): Promise<void> {
+async function updateMangaAll(interaction: CommandInteraction): Promise<void> {
     try {
         const value = interaction.options.get("manga")?.value as string;
         const mangas = value === "all" ? await getAllMangas() : [await getMangaFromName(value)];
@@ -63,7 +64,11 @@ async function updateMangaAllSites(interaction: CommandInteraction): Promise<voi
         
         for (let manga of mangas) {
             const newSites = allSites.filter(site => !manga.sites.some(s => s.site === site.site));
-            const [count, list] = await scrapExistingSite(manga, newSites);
+            const [_, list] = await scrapExistingSite(manga, newSites);
+            if (!manga.infos?.description || !manga.infos?.coverImage || manga.infos.tags.length === 0) {
+                manga.infos = await getMangaInfos(manga.anilist_id);
+                await updateMangaInfo(manga);
+            }
             res.push([manga.name, list]);
             await new Promise(f => setTimeout(f, 1000 * 7.5));
         }
@@ -139,7 +144,7 @@ export default new Command({
         const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
             manga: changeManga,
             site: changeSite,
-            all: updateMangaAllSites
+            all: updateMangaAll
         };
 
         try {
