@@ -1,3 +1,4 @@
+import { Worker } from 'worker_threads';
 export interface MangaInfo {
     id?: Number;
     sites: SiteInfo[];
@@ -43,7 +44,16 @@ export interface GraphqlParams {
 export interface GraphqlQueryMediaOutput {
     tags: { name: string }[];
     description: string;
-    coverImage: { medium: string };
+    coverImage: string;
+}
+
+export interface WorkerData {
+    manga: MangaInfo;
+}
+
+export interface CustomWorker {
+    worker: Worker;
+    status: boolean;
 }
 
 export type ScrapingOutcome = [ScrapingResult[], ScrapingError[]];
