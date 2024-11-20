@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, CommandInteraction, ChatInputCommandInteraction } from "discord.js";
 import { getMangaFromName, getSiteFromName, getAllMangas, getAllSites } from "../../API/queries/get";
 import { Command } from "../classes/command";
-import { FetchSite } from "../../API/seed";
+import { FetchSite } from "../../scrap/seed";
 import { updateSiteInfo, updateMangaInfo } from "../../API/queries/update";
 import { SiteInfo } from "../../types/types";
 import { isStringSimilarity } from "../../utils/utils";
@@ -61,7 +61,7 @@ async function updateMangaAll(interaction: CommandInteraction): Promise<void> {
         const mangas = value === "all" ? await getAllMangas() : [await getMangaFromName(value)];
         const allSites = await getAllSites();
         const res: [string, string[]][] = [];
-        
+
         for (let manga of mangas) {
             const newSites = allSites.filter(site => !manga.sites.some(s => s.site === site.site));
             const [_, list] = await scrapExistingSite(manga, newSites);
@@ -76,7 +76,6 @@ async function updateMangaAll(interaction: CommandInteraction): Promise<void> {
         await interaction.editReply(
             res.map(([manga, list]) => "Added to " + manga + ": " + list.join(", ")).join("\n")
         );
-
     } catch (error) {
         console.error(`Failed to update manga sites:`, error);
         throw error;
@@ -124,7 +123,7 @@ export default new Command({
                     option.setName("url").setDescription("The url of the site").setRequired(true)
                 )
         )
-        .addSubcommand(subcommand => 
+        .addSubcommand(subcommand =>
             subcommand
                 .setName("all")
                 .setDescription("Update all sites of a manga")
@@ -144,7 +143,7 @@ export default new Command({
         const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
             manga: changeManga,
             site: changeSite,
-            all: updateMangaAll
+            all: updateMangaAll,
         };
 
         try {
@@ -177,8 +176,8 @@ export default new Command({
                 { name: "false", value: "0" },
             ];
 
-            const filtered = choices
-            .filter(choice =>  {
+        const filtered = choices
+            .filter(choice => {
                 const choiceText = choice.name.toLowerCase();
                 const similarity = isStringSimilarity(choiceText, focused.value.toLowerCase());
                 return similarity >= 0.5;

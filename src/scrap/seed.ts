@@ -1,5 +1,6 @@
-import puppeteer, { Page } from "puppeteer";
+import { Page } from "puppeteer";
 import { MangaInfo, SiteInfo } from "../types/types";
+import { startBrowser } from "./browser";
 
 /**
  * @description Get the chapter limiter from the url
@@ -85,11 +86,7 @@ export async function getElement(page: Page, selector: string): Promise<string> 
 }
 
 export async function FetchSite(url: string): Promise<SiteInfo> {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox"],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-    });
+    const browser = await startBrowser();
 
     let siteInfo: SiteInfo = {} as SiteInfo;
 
