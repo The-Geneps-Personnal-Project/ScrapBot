@@ -30,9 +30,10 @@ jobs:
         run: |
           set -e
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            source ~/.bashrc
             cd ~/ScrapTS &&
             git pull &&
-            yarn install --frozen-lockfile &&
-            yarn build &&
-            forever restart scrap
+            ${{ secrets.YARN_PATH }} install &&
+            ${{ secrets.YARN_PATH }} build &&
+            /home/pi/.nvm/versions/node/v20.12.2/bin/forever restart scrap
           "
