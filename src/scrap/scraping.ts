@@ -60,7 +60,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
     const workers: CustomWorker[] = [];
 
     const initializeWorker = (): CustomWorker => {
-        const worker = new Worker(path.join(__dirname + '/scrapeWorker.js'));
+        const worker = new Worker(path.join(__dirname + '/scrapWorker.js'));
         const customWorker: CustomWorker = { worker, status: false };
 
         customWorker.worker.on('message', (message) => {
