@@ -24,14 +24,16 @@ export default new Command({
 
             const embed = new EmbedBuilder()
                 .setTitle(manga.name)
-                .setDescription(`Chapter: ${manga.chapter}\nAlert: ${manga.alert}`)
+                .setDescription((manga.infos?.description.split("<")[0] || "No description") + "\n**Tags**:\n" + manga.infos?.tags.map(tags => tags.name).join(", ") + "\n\n**Sites**:\n" + manga.sites.map(site => site.site).join(", "))
                 .addFields(
-                    manga.sites.map(site => ({
-                        name: site.site,
-                        value: " ",
-                        inline: true,
-                    }))
+                    [
+                        { name: "Alert", value: String(Boolean(manga.alert!)) , inline: true },
+                        { name: "Chapter", value: manga.chapter, inline: true },
+                        { name: "Last update", value: manga.last_update || "No data", inline: true },
+                        { name: "Anilist ID", value: String(manga.anilist_id), inline: true },
+                    ]
                 )
+                if (manga.infos?.coverImage) embed.setThumbnail(manga.infos?.coverImage)
             
             await interaction.editReply({ embeds: [embed] })
             client.logger(`Got ${JSON.stringify(manga)}.`);

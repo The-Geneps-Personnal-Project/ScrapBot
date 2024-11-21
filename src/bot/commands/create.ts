@@ -1,7 +1,7 @@
 import { CommandInteraction, EmbedBuilder } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { GraphqlQueryMediaOutput, MangaInfo } from "../../types/types";
-import { FetchSite } from "../../API/seed";
+import { FetchSite } from "../../scrap/seed";
 import { Command } from "../classes/command";
 import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
 import { getAllMangas, getAllSites, getMangaFromName, getSiteFromName } from "../../API/queries/get";
@@ -27,7 +27,8 @@ async function site(interaction: CommandInteraction): Promise<void> {
                     name: manga,
                     value: " ",
                     inline: true,
-                })))
+                }))
+            )
             .setColor("#00FF00");
         await interaction.editReply({ embeds: [embed] });
     } catch (error) {
@@ -59,7 +60,8 @@ async function manga(interaction: CommandInteraction): Promise<void> {
                     name: site,
                     value: " ",
                     inline: true,
-                })))
+                }))
+            )
             .setColor("#00FF00");
         await interaction.editReply({ embeds: [embed] });
     } catch (error) {
@@ -163,7 +165,7 @@ export default new Command({
             choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
 
         const filtered = choices
-            .filter(choice =>  {
+            .filter(choice => {
                 const choiceText = choice.name.toLowerCase();
                 const similarity = isStringSimilarity(choiceText, focused.value.toLowerCase());
                 return similarity >= 0.5;

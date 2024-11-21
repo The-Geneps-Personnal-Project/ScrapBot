@@ -1,7 +1,4 @@
-import puppeteer from "puppeteer-extra";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo, linkResult } from "../types/types";
-import { getChapterElement } from "../API/seed";
+import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo, linkResult, CustomWorker } from "../types/types";
 import { getAllMangas, getAllSites } from "../API/queries/get";
 import { setMangasInfo } from "../API/queries/update";
 import { updateList } from "../database/graphql/graphql";
@@ -9,16 +6,9 @@ import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
 import CustomClient from "../bot/classes/client";
 import { addSiteToManga } from "../API/queries/create";
 import { replaceURL, isValidPage } from "../utils/utils";
-
-puppeteer.use(StealthPlugin());
-
-async function startBrowser() {
-    return await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox"],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-    });
-}
+import { Worker } from 'worker_threads';
+import { startBrowser } from "./browser";
+import path from "path";
 
 export async function scrapExistingSite(
     data: SiteInfo | MangaInfo,
@@ -60,68 +50,64 @@ export async function scrapExistingSite(
     return [count, list];
 }
 
-
 export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
+    const THREAD_POOL_SIZE = Number(process.env.THREADS) || 4;
     const browser = await startBrowser();
-
     const scrapingResults: ScrapingResult[] = [];
     const scrapingErrors: ScrapingError[] = [];
 
-    for (const manga of elements) {
-        if (!manga.alert) continue;
+    const mangaQueue = [...elements.filter((manga) => manga.alert === 1 && manga.sites.length > 0)];
+    const workers: CustomWorker[] = [];
 
-        let maxChapter = Number(manga.chapter);
-        let maxChapterSite = null;
-        let maxChapterURL = "";
-        let lastChapterText = "";
-        let encounteredErrors = false;
-        let foundNewChapter = false;
+    const initializeWorker = (): CustomWorker => {
+        const worker = new Worker(path.join(__dirname + '/scrapeWorker.js'));
+        const customWorker: CustomWorker = { worker, status: false };
 
-        for (const site of manga.sites) {
-            const page = await browser.newPage();
-            try {
-                await page.goto(site.url + "/", { waitUntil: "networkidle2", timeout: 0 });
-
-                if (!page.url().includes(site.url)) continue;
-
-                lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-2) ?? "", site, manga);
-
-                const lastChapterTextMatch = lastChapterText?.replace(/\/$/, '')?.split('/').at(-1)?.match(/(\d+(?:[\.-]\d+)?)/);
-                const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0].replace('-', '.')) : NaN;
-                
-                client.logger(`Scraped ${manga.name} at ${site.url}: ${lastChapter}`);
-
-                if (!isNaN(lastChapter)) {
-                    foundNewChapter = true;
-                    if (lastChapter > maxChapter) {
-                        maxChapter = lastChapter;
-                        maxChapterSite = site;
-                        maxChapterURL = lastChapterText;
-                    }
-                }
-            } catch (error) {
-                encounteredErrors = true;
-                client.logger(`Error scraping ${manga.name} at ${site.url}: ${error}`);
-            } finally {
-                await page.close();
+        customWorker.worker.on('message', (message) => {
+            if (message.type === 'result') {
+                scrapingResults.push(message.data);
+            } else if (message.type === 'error') {
+                scrapingErrors.push(message.data);
             }
-        }
+            customWorker.status = false;
+            assignTaskToWorker(customWorker);
+        });
 
-        if (maxChapterSite !== null) {
-            scrapingResults.push({
-                manga,
-                lastChapter: maxChapter.toString(),
-                site: maxChapterSite,
-                url: maxChapterURL
-            });
-        } else if (!foundNewChapter && encounteredErrors) {
-            scrapingErrors.push({
-                name: manga.name,
-                error: "Failed to scrape any site for updates.",
-            });
+        customWorker.worker.on('error', (error) => {
+            client.logger(`Error in worker ${customWorker.worker.threadId}: ${error}`);
+            customWorker.status = false;
+            assignTaskToWorker(customWorker);
+        });
+
+        customWorker.worker.on('exit', (code) => {
+            if (code !== 0) client.logger(`Worker ${customWorker.worker.threadId + 1} stopped with exit code ${code}`);
+        });
+
+        return customWorker;
+    };
+
+    const assignTaskToWorker = (worker: CustomWorker) => {
+        if (worker.status) return;
+        if (mangaQueue.length === 0) return;
+
+        const manga = mangaQueue.shift();
+        if (manga) {
+            client.logger(`Assigning task for ${manga.name} to worker ${worker.worker.threadId}`);
+            worker.status = true;
+            worker.worker.postMessage({ manga });
         }
-        await new Promise(f => setTimeout(f, 1000 * 7.5)); //Waits 7.5 seconds between each loop
+    };
+
+    for (let i = 0; i < THREAD_POOL_SIZE; i++) workers.push(initializeWorker());
+
+    while (workers.some(worker => worker.status) || mangaQueue.length > 0) {
+        for (let i = 0; i < THREAD_POOL_SIZE; i++) {
+            assignTaskToWorker(workers[i]);  
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
     }
+
+    for (const worker of workers) worker.worker.terminate();
 
     await browser.close();
     return [scrapingResults, scrapingErrors];
