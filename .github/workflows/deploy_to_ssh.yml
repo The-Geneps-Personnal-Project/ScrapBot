@@ -20,8 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.12.2'
-          cache: 'yarn'
+          node-version: '20'
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -36,7 +35,7 @@ jobs:
         run: |
           set -e
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            source ~/.bashrc
+            export NVM_DIR=\$HOME/.nvm && [ -s \$NVM_DIR/nvm.sh ] && . \$NVM_DIR/nvm.sh && nvm use --lts
             cd ~/ScrapBot &&
             git pull &&
             yarn install &&
