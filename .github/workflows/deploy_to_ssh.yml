@@ -24,13 +24,13 @@ jobs:
 
       - name: Add Server to Known Hosts
         run: |
-          ssh-keyscan -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -t rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy Application
         run: |
           set -e
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            cd /home/ScrapTS &&
+            cd ~/ScrapTS &&
             git pull &&
             yarn install --frozen-lockfile &&
             yarn build &&
