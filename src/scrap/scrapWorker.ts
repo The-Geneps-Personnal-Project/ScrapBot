@@ -11,15 +11,14 @@ import { getChapterElement } from "./seed";
         const { manga } = task;
         const page: Page = await browser.newPage();
 
-        try {
-            let maxChapter = Number(manga.chapter);
-            let maxChapterSite: MangaInfo["sites"][number] | null = null;
-            let maxChapterURL = "";
-            let lastChapterText = "";
+        let maxChapter = Number(manga.chapter);
+        let maxChapterSite: MangaInfo["sites"][number] | null = null;
+        let maxChapterURL = "";
+        let lastChapterText = "";
 
-            for (const site of manga.sites) {
+        for (const site of manga.sites) {
+            try {
                 await page.goto(site.url + "/", { waitUntil: "networkidle2", timeout: 30000 });
-
                 if (!page.url().includes(site.url)) continue;
 
                 lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-2) ?? "", site, manga);
@@ -42,32 +41,30 @@ import { getChapterElement } from "./seed";
                         maxChapterURL = lastChapterText;
                     }
                 }
+            } catch (error) {
+                console.error(`[${new Date().toLocaleString()}] Worker ${threadId} Failed to scrape ${manga.name} at ${site.url}: ${error}`);
             }
+        }
 
-            if (maxChapterSite !== null) {
-                parentPort?.postMessage({
-                    type: "result",
-                    data: {
-                        manga,
-                        lastChapter: maxChapter.toString(),
-                        site: maxChapterSite,
-                        url: maxChapterURL,
-                    } as ScrapingResult,
-                });
-            } else {
-                parentPort?.postMessage({
-                    type: "error",
-                    data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
-                });
-            }
-        } catch (error: any) {
+        if (maxChapterSite !== null) {
+            parentPort?.postMessage({
+                type: "result",
+                data: {
+                    manga,
+                    lastChapter: maxChapter.toString(),
+                    site: maxChapterSite,
+                    url: maxChapterURL,
+                } as ScrapingResult,
+            });
+
+        } else {
             parentPort?.postMessage({
                 type: "error",
-                data: { name: manga.name, error: error.message } as ScrapingError,
+                data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
             });
-        } finally {
-            await page.close();
         }
+
+        await page.close();
     });
 
     process.on("exit", async () => {

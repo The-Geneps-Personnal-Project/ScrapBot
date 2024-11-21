@@ -61,7 +61,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 
     const initializeWorker = (): CustomWorker => {
         const worker = new Worker(path.join(__dirname + '/scrapWorker.js'));
-        const customWorker: CustomWorker = { worker, status: false };
+        const customWorker: CustomWorker = { worker, status: false, name: `Worker ${worker.threadId}` };
 
         customWorker.worker.on('message', (message) => {
             if (message.type === 'result') {
@@ -74,13 +74,13 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
         });
 
         customWorker.worker.on('error', (error) => {
-            client.logger(`Error in worker ${customWorker.worker.threadId}: ${error}`);
+            client.logger(`Error in ${customWorker.name}: ${error}`);
             customWorker.status = false;
             assignTaskToWorker(customWorker);
         });
 
         customWorker.worker.on('exit', (code) => {
-            if (code !== 0) client.logger(`Worker ${customWorker.worker.threadId + 1} stopped with exit code ${code}`);
+            if (code !== 0) client.logger(`${customWorker.name} stopped with exit code ${code}`);
         });
 
         return customWorker;
@@ -92,7 +92,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 
         const manga = mangaQueue.shift();
         if (manga) {
-            client.logger(`Assigning task for ${manga.name} to worker ${worker.worker.threadId}`);
+            client.logger(`Assigning task for ${manga.name} to ${worker.name}`);
             worker.status = true;
             worker.worker.postMessage({ manga });
         }

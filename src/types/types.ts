@@ -54,6 +54,7 @@ export interface WorkerData {
 export interface CustomWorker {
     worker: Worker;
     status: boolean;
+    name: string;
 }
 
 export type ScrapingOutcome = [ScrapingResult[], ScrapingError[]];
