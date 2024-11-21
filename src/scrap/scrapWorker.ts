@@ -16,6 +16,9 @@ import { getChapterElement } from "./seed";
         let maxChapterURL = "";
         let lastChapterText = "";
 
+        let foundNewChapter = false;
+        let encounteredError = false;
+
         for (const site of manga.sites) {
             try {
                 await page.goto(site.url + "/", { waitUntil: "networkidle2", timeout: 30000 });
@@ -40,9 +43,11 @@ import { getChapterElement } from "./seed";
                         maxChapterSite = site;
                         maxChapterURL = lastChapterText;
                     }
+                    foundNewChapter = true;
                 }
             } catch (error) {
                 console.error(`[${new Date().toLocaleString()}] Worker ${threadId} Failed to scrape ${manga.name} at ${site.url}: ${error}`);
+                encounteredError = true
             }
         }
 
@@ -56,8 +61,7 @@ import { getChapterElement } from "./seed";
                     url: maxChapterURL,
                 } as ScrapingResult,
             });
-
-        } else {
+        } else if (encounteredError && !foundNewChapter) {
             parentPort?.postMessage({
                 type: "error",
                 data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
