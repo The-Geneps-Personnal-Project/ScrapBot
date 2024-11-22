@@ -7,8 +7,9 @@ import { SiteInfo } from "../../types/types";
 import { isStringSimilarity } from "../../utils/utils";
 import { scrapExistingSite } from "../../scrap/scraping";
 import { getMangaInfos } from "../../database/graphql/graphql";
+import CustomClient from "../classes/client";
 
-async function changeManga(interaction: CommandInteraction): Promise<void> {
+async function changeManga(client: CustomClient, interaction: CommandInteraction): Promise<void> {
     try {
         const manga = await getMangaFromName(interaction.options.get("manga")?.value as string);
         if (!manga) throw new Error("Manga does not exist");
@@ -28,7 +29,7 @@ async function changeManga(interaction: CommandInteraction): Promise<void> {
     }
 }
 
-async function changeSite(interaction: CommandInteraction): Promise<void> {
+async function changeSite(client: CustomClient, interaction: CommandInteraction): Promise<void> {
     try {
         let site = await getSiteFromName(interaction.options.get("site")?.value as string);
         if (!site) throw new Error("Site does not exist");
@@ -55,7 +56,7 @@ async function changeSite(interaction: CommandInteraction): Promise<void> {
     }
 }
 
-async function updateMangaAll(interaction: CommandInteraction): Promise<void> {
+async function updateMangaAll(client: CustomClient, interaction: CommandInteraction): Promise<void> {
     try {
         const value = interaction.options.get("manga")?.value as string;
         const mangas = value === "all" ? await getAllMangas() : [await getMangaFromName(value)];
@@ -63,17 +64,21 @@ async function updateMangaAll(interaction: CommandInteraction): Promise<void> {
         const res: [string, string[]][] = [];
 
         for (let manga of mangas) {
+            client.logger(`Updating ${manga.name}...`);
             const newSites = allSites.filter(site => !manga.sites.some(s => s.site === site.site));
-            const [_, list] = await scrapExistingSite(manga, newSites);
+            const [count, list] = await scrapExistingSite(manga, newSites);
+            client.logger(`Added ${count} sites to ${manga.name}.`);
+            client.logger(`Checking infos for manga ${manga.name}: ${manga.infos?.description}, ${manga.infos?.coverImage}, ${manga.infos?.tags.length}`);
             if (!manga.infos?.description || !manga.infos?.coverImage || manga.infos.tags.length === 0) {
                 manga.infos = await getMangaInfos(manga.anilist_id);
+                client.logger(`Updated infos for manga ${manga.name}: ${manga.infos?.description}, ${manga.infos?.coverImage}, ${manga.infos?.tags.length}`);
                 await updateMangaInfo(manga);
             }
             res.push([manga.name, list]);
             await new Promise(f => setTimeout(f, 1000 * 7.5));
         }
 
-        await interaction.editReply(
+        await interaction.channel?.send(
             res.map(([manga, list]) => "Added to " + manga + ": " + list.join(", ")).join("\n")
         );
     } catch (error) {
@@ -140,14 +145,14 @@ export default new Command({
             await interaction.deferReply().catch(console.error);
         }
         const subcommand = interaction.options.getSubcommand();
-        const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
+        const subcommands: { [key: string]: (client:CustomClient, interaction: CommandInteraction) => Promise<void> } = {
             manga: changeManga,
             site: changeSite,
             all: updateMangaAll,
         };
 
         try {
-            await subcommands[subcommand](interaction);
+            await subcommands[subcommand](client, interaction);
             client.logger(`Updated ${subcommand}.`);
         } catch (error) {
             client.logger(`Failed to update ${subcommand}: ${(error as Error).message}`);

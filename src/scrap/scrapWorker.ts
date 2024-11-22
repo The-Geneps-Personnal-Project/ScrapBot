@@ -66,6 +66,10 @@ import { getChapterElement } from "./seed";
                 type: "error",
                 data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
             });
+        } else {
+            parentPort?.postMessage({
+                type: "empty",
+            });
         }
 
         await page.close();

@@ -55,7 +55,7 @@ export default new Command({
         choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
 
         const filtered = choices
-            .filter(choice => choice.name.toLowerCase().startsWith(focused.value.toLowerCase()))
+            .filter(choice => choice.name.toLowerCase().includes(focused.value.toLowerCase()))
             .slice(0, 25);
         await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
     },
