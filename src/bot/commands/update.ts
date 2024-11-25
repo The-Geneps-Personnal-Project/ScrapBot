@@ -61,23 +61,28 @@ async function updateMangaAll(client: CustomClient, interaction: CommandInteract
         const value = interaction.options.get("manga")?.value as string;
         const mangas = value === "all" ? await getAllMangas() : [await getMangaFromName(value)];
         const allSites = await getAllSites();
-        const res: [string, string[]][] = [];
+        const res: [string, string[]][] | null = [];
 
         for (let manga of mangas) {
-            client.logger(`{manga.name} has ${manga.sites.length} sites: ${manga.sites.map(s => s.site).join(", ")}`);
             const newSites = allSites.filter(site => !manga.sites.some(s => s.site === site.site));
-            client.logger('Looking for new sites: ' + newSites.map(s => s.site).join(", "));
-            const [count, list] = await scrapExistingSite(manga, newSites);
-            client.logger(`Added ${count} sites to ${manga.name}.`);
-            client.logger(`Checking infos for manga ${manga.name} description: ${manga.infos?.description}`);
+            
+            let list = null;
+            if (newSites.length !== 0) {
+                console.log(`Scraping new sites for manga: ${manga.name}`);
+                const [_, scrapedList] = await scrapExistingSite(manga, newSites);
+                list = scrapedList;
+            } else console.log(`No new sites to scrape for manga: ${manga.name}`);
+        
             if ((!manga.infos?.description || !manga.infos?.coverImage || manga.infos.tags.length === 0) && manga.anilist_id !== 0) {
                 manga.infos = await getMangaInfos(manga.anilist_id);
-                client.logger(`Updated infos for manga ${manga.name}: ${manga.infos?.description}, ${manga.infos?.coverImage}, ${manga.infos?.tags.length}`);
+                console.log(`Updated infos for manga ${manga.name}: ${manga.infos?.description}, ${manga.infos?.coverImage}, ${manga.infos?.tags.length}`);
                 await updateMangaInfo(manga);
             }
-            res.push([manga.name, list]);
+        
+            if (list && Array.isArray(list) && list.length > 0) res.push([manga.name, list]);
+        
             await new Promise(f => setTimeout(f, 1000 * 7.5));
-        }
+        }        
 
         await interaction.channel?.send(
             res.map(([manga, list]) => "Added to " + manga + ": " + list.join(", ")).join("\n")
