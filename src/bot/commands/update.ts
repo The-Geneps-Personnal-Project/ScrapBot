@@ -64,12 +64,13 @@ async function updateMangaAll(client: CustomClient, interaction: CommandInteract
         const res: [string, string[]][] = [];
 
         for (let manga of mangas) {
-            client.logger(`Updating ${manga.name}...`);
+            client.logger(`{manga.name} has ${manga.sites.length} sites: ${manga.sites.map(s => s.site).join(", ")}`);
             const newSites = allSites.filter(site => !manga.sites.some(s => s.site === site.site));
+            client.logger('Looking for new sites: ' + newSites.map(s => s.site).join(", "));
             const [count, list] = await scrapExistingSite(manga, newSites);
             client.logger(`Added ${count} sites to ${manga.name}.`);
-            client.logger(`Checking infos for manga ${manga.name}: ${manga.infos?.description}, ${manga.infos?.coverImage}, ${manga.infos?.tags.length}`);
-            if (!manga.infos?.description || !manga.infos?.coverImage || manga.infos.tags.length === 0) {
+            client.logger(`Checking infos for manga ${manga.name} description: ${manga.infos?.description}`);
+            if ((!manga.infos?.description || !manga.infos?.coverImage || manga.infos.tags.length === 0) && manga.anilist_id !== 0) {
                 manga.infos = await getMangaInfos(manga.anilist_id);
                 client.logger(`Updated infos for manga ${manga.name}: ${manga.infos?.description}, ${manga.infos?.coverImage}, ${manga.infos?.tags.length}`);
                 await updateMangaInfo(manga);
