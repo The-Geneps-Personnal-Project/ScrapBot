@@ -10,6 +10,9 @@ import { Worker } from 'worker_threads';
 import { startBrowser } from "./browser";
 import path from "path";
 
+const workers: CustomWorker[] = [];
+const THREAD_POOL_SIZE = Number(process.env.THREADS) || 4;
+
 export async function scrapExistingSite(
     data: SiteInfo | MangaInfo,
     exceptions: SiteInfo[] | MangaInfo[]
@@ -51,13 +54,10 @@ export async function scrapExistingSite(
 }
 
 export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
-    const THREAD_POOL_SIZE = Number(process.env.THREADS) || 4;
-    const browser = await startBrowser();
     const scrapingResults: ScrapingResult[] = [];
     const scrapingErrors: ScrapingError[] = [];
 
     const mangaQueue = [...elements.filter((manga) => manga.alert === 1 && manga.sites.length > 0)];
-    const workers: CustomWorker[] = [];
 
     const initializeWorker = (): CustomWorker => {
         const worker = new Worker(path.join(__dirname + '/scrapWorker.js'));
@@ -107,9 +107,8 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    for (const worker of workers) worker.worker.terminate();
+    for (const worker of workers) { worker.worker.terminate(); workers.pop(); }
 
-    await browser.close();
     return [scrapingResults, scrapingErrors];
 }
 

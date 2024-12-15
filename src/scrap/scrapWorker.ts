@@ -18,6 +18,15 @@ import { getChapterElement } from "./seed";
 
         let foundNewChapter = false;
         let encounteredError = false;
+        let responseSent = false;
+
+
+        const timeout = setTimeout(() => {
+            if (!responseSent) {
+                parentPort?.postMessage({ type: "empty" });
+                responseSent = true;
+            }
+        }, 30000);
 
         for (const site of manga.sites) {
             try {
@@ -61,15 +70,18 @@ import { getChapterElement } from "./seed";
                     url: maxChapterURL,
                 } as ScrapingResult,
             });
+            responseSent = true;
         } else if (encounteredError && !foundNewChapter) {
             parentPort?.postMessage({
                 type: "error",
                 data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
             });
+            responseSent = true;
         } else {
             parentPort?.postMessage({
                 type: "empty",
             });
+            responseSent = true;
         }
 
         await page.close();
