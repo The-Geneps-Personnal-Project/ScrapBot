@@ -26,7 +26,15 @@ import { getChapterElement } from "./seed";
                 parentPort?.postMessage({ type: "empty" });
                 responseSent = true;
             }
-        }, 30000);
+        }, 2 * 60 * 1000); // 2 minutes
+
+        const sendResponse = (response: { type: string; data?: ScrapingResult | ScrapingError; }) => {
+            if (!responseSent) {
+                clearTimeout(timeout);
+                parentPort?.postMessage(response);
+                responseSent = true;
+            }
+        };
 
         for (const site of manga.sites) {
             try {
@@ -61,7 +69,7 @@ import { getChapterElement } from "./seed";
         }
 
         if (maxChapterSite !== null) {
-            parentPort?.postMessage({
+            sendResponse({
                 type: "result",
                 data: {
                     manga,
@@ -72,13 +80,13 @@ import { getChapterElement } from "./seed";
             });
             responseSent = true;
         } else if (encounteredError && !foundNewChapter) {
-            parentPort?.postMessage({
+            sendResponse({
                 type: "error",
                 data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
             });
             responseSent = true;
         } else {
-            parentPort?.postMessage({
+            sendResponse({
                 type: "empty",
             });
             responseSent = true;
@@ -89,5 +97,6 @@ import { getChapterElement } from "./seed";
 
     process.on("exit", async () => {
         await browser.close();
+        process.exit(0);
     });
 })();
