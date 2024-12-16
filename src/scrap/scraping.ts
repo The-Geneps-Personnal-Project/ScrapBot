@@ -81,7 +81,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 
         customWorker.worker.on('exit', (code) => {
             if (code !== 0) client.logger(`${customWorker.name} stopped with exit code ${code}`);
-            customWorker.status = false;
+            if (code === 1 && workers.length % 2 !== 0) workers.push(initializeWorker());
         });
 
         return customWorker;
@@ -106,7 +106,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
         for (const worker of workers) {
             worker.worker.terminate();
         }
-    }, 30 * 60 * 1000); // 30 minutes
+    }, 60 * 60 * 1000); // 1 hour
 
     while (workers.some(worker => worker.status) || mangaQueue.length > 0) {
         for (const worker of workers) assignTaskToWorker(worker);
@@ -116,6 +116,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
     clearTimeout(globalTimeout);
     for (const worker of workers) { worker.worker.terminate() }
 
+    client.logger(`Scraping completed. Results: ${scrapingResults.length}, Errors: ${scrapingErrors.length}`);
     return [scrapingResults, scrapingErrors];
 }
 

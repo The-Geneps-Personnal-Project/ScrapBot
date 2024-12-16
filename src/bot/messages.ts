@@ -2,6 +2,7 @@ import { ScrapingError, ScrapingResult } from "../types/types";
 import CustomClient from "./classes/client";
 
 export async function sendUpdateMessages(ResultInfos: ScrapingResult[], client: CustomClient) {
+    client.logger(`Sending ${ResultInfos.length} update messages`);
     for (const { manga, lastChapter, site, url } of ResultInfos) {
         await client.chans
             .get("updates")
