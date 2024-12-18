@@ -81,7 +81,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 
         customWorker.worker.on('exit', (code) => {
             if (code !== 0) client.logger(`${customWorker.name} stopped with exit code ${code}`);
-            if (code === 1 && workers.length % 2 !== 0) workers.push(initializeWorker());
+            workers.splice(workers.indexOf(customWorker), 1);
         });
 
         return customWorker;
@@ -99,14 +99,18 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
         }
     };
 
-    for (let i = 0; i < THREAD_POOL_SIZE; i++) workers.push(initializeWorker());
+    for (let i = 0; i < THREAD_POOL_SIZE && workers.length !== THREAD_POOL_SIZE; i++) workers.push(initializeWorker());
 
     const globalTimeout = setTimeout(() => {
         client.logger(`Global timeout reached. Terminating all workers...`);
         for (const worker of workers) {
             worker.worker.terminate();
+            worker.status = false;
+            client.logger(`Worker ${worker.name} terminated and reset.`);
         }
-    }, 60 * 60 * 1000); // 1 hour
+        mangaQueue.length = 0;
+        client.logger(`Queue cleared.`);
+    }, 30 * 60 * 1000); // 30 minutes
 
     while (workers.some(worker => worker.status) || mangaQueue.length > 0) {
         for (const worker of workers) assignTaskToWorker(worker);
@@ -114,7 +118,6 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
     }
 
     clearTimeout(globalTimeout);
-    for (const worker of workers) { worker.worker.terminate() }
 
     client.logger(`Scraping completed. Results: ${scrapingResults.length}, Errors: ${scrapingErrors.length}`);
     return [scrapingResults, scrapingErrors];
