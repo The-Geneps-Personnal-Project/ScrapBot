@@ -4,11 +4,14 @@ import { startBrowser } from "./browser";
 import { MangaInfo, ScrapingResult, ScrapingError } from "../types/types";
 import { getChapterElement } from "./seed";
 
-(async () => {
-    const browser: Browser = await startBrowser();
+let browser: Browser | null = null;
 
+(async () => {
+    browser = await startBrowser();
+    
     parentPort?.on("message", async (task: { manga: MangaInfo }) => {
         const { manga } = task;
+        if (!browser) browser = await startBrowser();
         const page: Page = await browser.newPage();
 
         let maxChapter = Number(manga.chapter);
@@ -94,9 +97,10 @@ import { getChapterElement } from "./seed";
 
         await page.close();
     });
-
+    
     process.on("exit", async () => {
-        await browser.close();
+        await browser?.close();
+        browser = null;
         process.exit(0);
     });
 })();
