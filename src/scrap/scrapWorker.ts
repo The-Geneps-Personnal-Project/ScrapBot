@@ -101,6 +101,5 @@ let browser: Browser | null = null;
     process.on("exit", async () => {
         await browser?.close();
         browser = null;
-        process.exit(0);
     });
 })();

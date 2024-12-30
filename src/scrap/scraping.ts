@@ -69,8 +69,12 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
             } else if (message.type === 'error') {
                 scrapingErrors.push(message.data);
             }
-            customWorker.status = false;
-            assignTaskToWorker(customWorker);
+
+            if (mangaQueue.length === 0) customWorker.worker.emit('exit', 0);
+            else {
+                customWorker.status = false;
+                assignTaskToWorker(customWorker);
+            }
         });
 
         customWorker.worker.on('error', (error) => {
