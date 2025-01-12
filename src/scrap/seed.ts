@@ -1,6 +1,5 @@
-import { Page } from "puppeteer";
 import { MangaInfo, SiteInfo } from "../types/types";
-import { startBrowser } from "./browser";
+import { fetchSiteDOM } from "../utils/fetch";
 
 /**
  * @description Get the chapter limiter from the url
@@ -26,45 +25,79 @@ function getChapterLimiter(url: string): string {
  */
 function normalizeURL(url: string, toRemove: number = 1): string {
     let normalized_url = url.endsWith("/") ? url.slice(0, -1) : url;
-    if (url[url.indexOf("chapter") - 1] === "-")
+
+    const chapterIndex = normalized_url.indexOf("chapter");
+    if (chapterIndex > 0 && normalized_url[chapterIndex - 1] === "-") {
         normalized_url =
-            normalized_url.slice(0, normalized_url.indexOf("chapter") - 1) +
+            normalized_url.slice(0, chapterIndex - 1) +
             "/" +
-            normalized_url.slice(normalized_url.indexOf("chapter"));
-    const parts = normalized_url.split("/");
+            normalized_url.slice(chapterIndex);
+    }
 
-    toRemove = Math.min(toRemove, parts.length - 1);
+    try {
+        const parsedUrl = new URL(normalized_url);
 
-    parts.splice(-toRemove, toRemove);
+        const pathParts = parsedUrl.pathname.split("/").filter(part => part);
+        toRemove = Math.min(toRemove, pathParts.length);
+        const updatedPathParts = pathParts.slice(0, pathParts.length - toRemove);
 
-    return parts.join("/") + (parts.length === 2 ? "/" : "");
+        parsedUrl.pathname = "/" + updatedPathParts.join("/");
+
+        let finalUrl = parsedUrl.toString().replace(/([^:]\/)\/+/g, "$1");
+        finalUrl = finalUrl.endsWith("/") && updatedPathParts.length === 0
+            ? finalUrl 
+            : finalUrl.replace(/\/$/, "");
+
+        return finalUrl;
+    } catch (error) {
+        console.error("Invalid URL:", url, error);
+        return url;
+    }
 }
+
+
+
 
 /**
  * @description Get the chapter element from the page (The first link containing "chapter" in the text)
  * @param page - The page to get the chapter element from
  * @returns - The href of the chapter element
  */
-export async function getChapterElement(page: Page, name?: string, site?: SiteInfo, manga?: MangaInfo): Promise<string> {
-    const href = await page.evaluate((name:string, site:SiteInfo, manga:MangaInfo) => {
-        let highestChapterNumber = -Infinity;
-        let highestChapterLink = "";
-        const links = Array.from(document.querySelectorAll("a"));
-        const targetLink = links.filter(link => link.textContent?.toLowerCase().includes("chapter"));
-        targetLink.forEach(link => {
-            const chapterMatch = link.textContent?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
-            if (chapterMatch && (site ? link.href.includes(site.chapter_url): true) && (name ? link.href?.includes(name) : true)) {
-                const chapterNumber = parseFloat(chapterMatch[1].replace("-", "."));
-                if (chapterNumber > highestChapterNumber && (chapterNumber - 20) < parseFloat(manga?.chapter || "0")) {
-                    highestChapterNumber = chapterNumber;
-                    highestChapterLink = link.href;
-                }
+export async function getChapterElement(
+    document: Document,
+    name?: string,
+    site?: SiteInfo,
+    manga?: MangaInfo
+): Promise<string> {
+    let highestChapterNumber = -Infinity;
+    let highestChapterLink = "";
+
+    const links = Array.from(document.querySelectorAll("a"));
+    const targetLinks = links.filter(link =>
+        link.textContent?.toLowerCase().includes("chapter")
+    );
+
+    targetLinks.forEach(link => {
+        const chapterMatch = link.textContent?.match(/(\d+(?:\.\d+)?|\d+-\d+)(?!.*\d)/);
+        if (
+            chapterMatch &&
+            (site ? link.href.includes(site.chapter_url) : true) &&
+            (name ? link.href.includes(name) : true)
+        ) {
+            const chapterNumber = parseFloat(chapterMatch[1].replace("-", "."));
+            if (
+                chapterNumber > highestChapterNumber &&
+                chapterNumber - 20 < parseFloat(manga?.chapter || "0")
+            ) {
+                highestChapterNumber = chapterNumber;
+                highestChapterLink = link.href;
             }
-        });
-        return highestChapterLink ? highestChapterLink : "";
-    }, name as string, site as SiteInfo, manga as MangaInfo);
-    return href;
+        }
+    });
+
+    return highestChapterLink ? highestChapterLink : "";
 }
+
 
 /**
  * @description Get a manga from the main page given as parameter
@@ -72,35 +105,33 @@ export async function getChapterElement(page: Page, name?: string, site?: SiteIn
  * @param selector - The selector to get the element from
  * @returns - The href of the element
  */
-export async function getElement(page: Page, selector: string): Promise<string> {
-    const link = await page.evaluate((selector: string) => {
-        const links = Array.from(document.querySelectorAll(selector));
+export async function getElement(document: Document, selector: string): Promise<string> {
+    const links = Array.from(document.querySelectorAll(selector));
 
-        const filteredLinks = links.filter(link => {
-            return link.querySelector("img");
-        });
-        return (filteredLinks[3] as HTMLAnchorElement).href; // Return the 3rd element to be sure to have a manga and not decorative image
-    }, selector);
+    const filteredLinks = links.filter(link => link.querySelector("img"));
 
-    return link;
+    const link = filteredLinks[3] as HTMLAnchorElement | undefined;
+    return link ? link.href : "";
 }
 
-export async function FetchSite(url: string): Promise<SiteInfo> {
-    const browser = await startBrowser();
 
+export async function FetchSite(url: string): Promise<SiteInfo> {
     let siteInfo: SiteInfo = {} as SiteInfo;
 
     try {
-        const page = await browser.newPage();
-        await page.goto(url, { waitUntil: "domcontentloaded" });
+        const document = await fetchSiteDOM(url);
 
-        const mainLink = await getElement(page, "a:has(img)");
-        const siteName = new URL(url).hostname.split(".").filter(el => el != "www")[0];
+        const mainLinkElement = Array.from(document.querySelectorAll("a")).find(anchor =>
+            anchor.querySelector("img")
+        );
+        const mainLink = mainLinkElement ? new URL(mainLinkElement.href, url).toString() : null;
+        const siteName = new URL(url).hostname.split(".").filter(el => el !== "www")[0];
 
         if (mainLink) {
-            await page.goto(mainLink, { waitUntil: "domcontentloaded" });
+            const mainDocument = await fetchSiteDOM(mainLink);
+
             const listUrl = normalizeURL(mainLink);
-            const chapterUrl = await getChapterElement(page);
+            const chapterUrl = await getChapterElement(mainDocument);
             const chapterLimiter = getChapterLimiter(chapterUrl);
 
             siteInfo = {
@@ -109,12 +140,12 @@ export async function FetchSite(url: string): Promise<SiteInfo> {
                 chapter_url: normalizeURL(chapterUrl, 2) + "/",
                 chapter_limiter: chapterLimiter,
             };
-            return siteInfo;
         }
     } catch (error) {
         console.error("Failed to create site:", error);
-    } finally {
-        await browser.close();
-        return siteInfo;
     }
+
+    return siteInfo;
 }
+
+
