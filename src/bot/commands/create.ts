@@ -19,15 +19,17 @@ async function site(interaction: CommandInteraction): Promise<void> {
         const site = await FetchSite(completeUrl);
         await addSite(site);
         const [nbr, list] = await scrapExistingSite(site, []);
+        const overload = list.length > 25 ? "..." : "";
         const embed = new EmbedBuilder()
             .setTitle(site.site)
-            .setDescription(`Added to the list. ${nbr} mangas linked.`)
+            .setDescription(`Added to the list. ${nbr.toString()} mangas linked.`)
             .addFields(
-                ...list.map((manga: string) => ({
+                ...list.slice(0, 24).map((manga: string) => ({
                     name: manga,
                     value: " ",
                     inline: true,
-                }))
+                })),
+                { name: overload, value: " ", inline: true }
             )
             .setColor("#00FF00");
         await interaction.editReply({ embeds: [embed] });
