@@ -7,8 +7,8 @@ import CustomClient from "../bot/classes/client";
 import { addSiteToManga } from "../API/queries/create";
 import { replaceURL, isValidPage } from "../utils/utils";
 import { Worker } from 'worker_threads';
-import { startBrowser } from "./browser";
 import path from "path";
+import { fetchSiteDOM } from "../utils/fetch";
 
 const workers: CustomWorker[] = [];
 const THREAD_POOL_SIZE = Number(process.env.THREADS) || 4;
@@ -17,13 +17,11 @@ export async function scrapExistingSite(
     data: SiteInfo | MangaInfo,
     exceptions: SiteInfo[] | MangaInfo[]
 ): Promise<linkResult> {
-    const browser = await startBrowser();
-
     // Determine if data is a Site or a Manga
     const items = 'url' in data ? await getAllMangas() : await getAllSites();
     const isSite = (item: any): item is SiteInfo => 'url' in item;
 
-    const filteredItems = exceptions.length > 0 ? exceptions: items;
+    const filteredItems = exceptions.length > 0 ? exceptions : items;
 
     let count = 0;
     let list: string[] = [];
@@ -34,24 +32,22 @@ export async function scrapExistingSite(
         const url = site.url + replaceURL(manga.name);
 
         try {
-            const page = await browser.newPage();
-            await page.goto(url, { waitUntil: 'domcontentloaded' });
+            const document = await fetchSiteDOM(url);
 
-            if (await isValidPage(page, url.replace(/\/$/, ''))) {
+            if (await isValidPage(document, url.replace(/\/$/, ''))) {
                 await addSiteToManga(site.site, manga.name);
                 count++;
                 list.push(isSite(data) ? manga.name : site.site);
             }
-
-            await page.close();
         } catch (error) {
             console.error(`Failed to scrap ${site.site} for ${manga.name}: ${error}`);
         }
     }
 
-    await browser.close()
+    console.log(`Scraped ${count} sites`);
     return [count, list];
 }
+
 
 export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
     const scrapingResults: ScrapingResult[] = [];

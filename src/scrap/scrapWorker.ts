@@ -1,18 +1,12 @@
 import { parentPort, threadId } from "worker_threads";
-import { Browser, Page } from "puppeteer";
-import { startBrowser } from "./browser";
 import { MangaInfo, ScrapingResult, ScrapingError } from "../types/types";
 import { getChapterElement } from "./seed";
+import { fetchSiteDOM } from "../utils/fetch";
 
-let browser: Browser | null = null;
 
 (async () => {
-    browser = await startBrowser();
-    
     parentPort?.on("message", async (task: { manga: MangaInfo }) => {
         const { manga } = task;
-        if (!browser) browser = await startBrowser();
-        const page: Page = await browser.newPage();
 
         let maxChapter = Number(manga.chapter);
         let maxChapterSite: MangaInfo["sites"][number] | null = null;
@@ -23,7 +17,6 @@ let browser: Browser | null = null;
         let encounteredError = false;
         let responseSent = false;
 
-
         const timeout = setTimeout(() => {
             if (!responseSent) {
                 parentPort?.postMessage({ type: "empty" });
@@ -31,7 +24,7 @@ let browser: Browser | null = null;
             }
         }, 2 * 60 * 1000); // 2 minutes
 
-        const sendResponse = (response: { type: string; data?: ScrapingResult | ScrapingError; }) => {
+        const sendResponse = (response: { type: string; data?: ScrapingResult | ScrapingError }) => {
             if (!responseSent) {
                 clearTimeout(timeout);
                 parentPort?.postMessage(response);
@@ -41,10 +34,13 @@ let browser: Browser | null = null;
 
         for (const site of manga.sites) {
             try {
-                await page.goto(site.url + "/", { waitUntil: "networkidle2", timeout: 30000 });
-                if (!page.url().includes(site.url)) continue;
+                const document = await fetchSiteDOM(site.url);
 
-                lastChapterText = await getChapterElement(page, site.chapter_url.split("/").at(-2) ?? "", site, manga);
+                console.log(`[${new Date().toLocaleString()}] Worker ${threadId} Going ${document.location.href}, looking for ${site.url}`);
+
+                if (!document.location.href.includes(site.url)) continue;
+
+                lastChapterText = await getChapterElement(document, site.chapter_url.split("/").at(-2) ?? "", site, manga);
 
                 const lastChapterTextMatch = lastChapterText
                     ?.replace(/\/$/, "")
@@ -67,7 +63,7 @@ let browser: Browser | null = null;
                 }
             } catch (error) {
                 console.error(`[${new Date().toLocaleString()}] Worker ${threadId} Failed to scrape ${manga.name} at ${site.url}: ${error}`);
-                encounteredError = true
+                encounteredError = true;
             }
         }
 
@@ -81,25 +77,15 @@ let browser: Browser | null = null;
                     url: maxChapterURL,
                 } as ScrapingResult,
             });
-            responseSent = true;
         } else if (encounteredError && !foundNewChapter) {
             sendResponse({
                 type: "error",
                 data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
             });
-            responseSent = true;
         } else {
             sendResponse({
                 type: "empty",
             });
-            responseSent = true;
         }
-
-        await page.close();
-    });
-    
-    process.on("exit", async () => {
-        await browser?.close();
-        browser = null;
     });
 })();
