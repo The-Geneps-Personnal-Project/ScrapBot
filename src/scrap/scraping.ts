@@ -53,7 +53,8 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
     const scrapingResults: ScrapingResult[] = [];
     const scrapingErrors: ScrapingError[] = [];
 
-    const mangaQueue = [...elements.filter((manga) => manga.alert === 1 && manga.sites.length > 0)];
+    client.logger(`Client has ${client.dailyFeed.length} mangas in daily feed.`);
+    const mangaQueue = [...elements.filter((manga) => manga.alert === 1 && manga.sites.length > 0 && !client.dailyFeed.includes(manga.name))];
 
     const initializeWorker = (): CustomWorker => {
         const worker = new Worker(path.join(__dirname + '/scrapWorker.js'));
@@ -62,6 +63,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
         customWorker.worker.on('message', (message) => {
             if (message.type === 'result') {
                 scrapingResults.push(message.data);
+                client.dailyFeed.push(message.data.name);
             } else if (message.type === 'error') {
                 scrapingErrors.push(message.data);
             }
@@ -125,8 +127,6 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 
 export async function initiateScraping(client: CustomClient) {
     const mangas: MangaInfo[] = await getAllMangas();
-
-    await client.chans.get("updates")?.bulkDelete(100);
 
     const [result, errors] = await scrapeSiteInfo(client, mangas);
     if (errors && errors.length > 0) sendErrorMessage(errors, client);

@@ -9,6 +9,7 @@ import { Event } from "./events";
 export default class CustomClient extends Client {
     commands: Collection<string, Command> = new Collection();
     chans: Collection<string, TextChannel> = new Collection();
+    dailyFeed: String[] = [];
 
     constructor() {
         super({

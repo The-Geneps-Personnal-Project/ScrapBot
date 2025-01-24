@@ -9,11 +9,16 @@ export default new Event({
         await client.deployCommands();
         console.log("Ready");
 
-        const crontab = new CronJob("0 21 * * *", async () => {
-            // Every day at 9pm (+1h with the server timezone)
+        const crontab = new CronJob("0 7-23/3 * * *", async () => {
             await initiateScraping(client);
         });
 
+        const dailyReset = new CronJob("45 6 * * *", async () => {
+            await client.chans.get("updates")?.bulkDelete(100);
+            client.dailyFeed = [];
+        })
+
         if (!crontab.running) crontab.start();
+        if (!dailyReset.running) dailyReset.start();
     },
 });
