@@ -126,6 +126,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 }
 
 export async function initiateScraping(client: CustomClient) {
+    console.time('Execution time');
     const mangas: MangaInfo[] = await getAllMangas();
 
     const [result, errors] = await scrapeSiteInfo(client, mangas);
@@ -139,4 +140,5 @@ export async function initiateScraping(client: CustomClient) {
             client.logger(`Failed to update: ${error}`);
         }
     }
+    console.timeEnd('Execution time');
 }
