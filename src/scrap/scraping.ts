@@ -138,7 +138,5 @@ export async function initiateScraping(client: CustomClient) {
         } catch (error) {
             client.logger(`Failed to update: ${error}`);
         }
-    } else {
-        client.chans.get("updates")?.send("No new chapters found.");
     }
 }
