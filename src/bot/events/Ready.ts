@@ -20,5 +20,8 @@ export default new Event({
 
         if (!crontab.running) crontab.start();
         if (!dailyReset.running) dailyReset.start();
+
+        // Ensure the channel is cleared if the bot is offline at the cron trigger time
+        await client.chans.get("updates")?.bulkDelete(100);
     },
 });
