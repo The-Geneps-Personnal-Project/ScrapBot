@@ -1,3 +1,9 @@
+/**
+ * 'active' takes part in scraping and raises alerts.
+ * 'must_watch' is a backlog entry: same table, no alerts, never scraped.
+ */
+export type MangaStatus = "active" | "must_watch";
+
 export interface MangaInfo {
     id?: number;
     sites: SiteInfo[];
@@ -6,6 +12,7 @@ export interface MangaInfo {
     chapter: string;
     name: string;
     last_update?: string;
+    status?: MangaStatus;
     infos?: MangaExtraInfo;
 }
 
@@ -56,6 +63,8 @@ export interface GraphqlParams {
     id?: number;
     mediaId?: number;
     progress?: number;
+    /** AniList MediaListStatus, e.g. PLANNING or CURRENT. */
+    status?: string;
 }
 
 /** Messages a scraping worker may send back to the pool. */

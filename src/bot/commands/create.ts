@@ -6,7 +6,7 @@ import { Command } from "../classes/command";
 import { addManga, addSite, addSiteToManga } from "../../API/queries/create";
 import { getMangaFromName, getSiteFromName, getAllMangas, getAllSites } from "../../API/queries/get";
 import { getCachedMangas, getCachedSites } from "../../API/cache";
-import { getMangaInfos } from "../../database/graphql/graphql";
+import { getMangaInfos, setMediaListStatus } from "../../database/graphql/graphql";
 import { linkMangaToSites, linkSiteToMangas } from "../../scrap/scraping";
 import { isStringSimilarity } from "../../utils/utils";
 import { COLORS, noticeCard, resultSummary } from "../ui";
@@ -53,6 +53,7 @@ async function createManga(interaction: ChatInputCommandInteraction): Promise<vo
     const name = interaction.options.getString("name", true);
     const chapter = interaction.options.getString("chapter", true);
     const anilistId = interaction.options.getNumber("anilist_id", true);
+    const mustWatch = interaction.options.getBoolean("must_watch") ?? false;
 
     // Existence is checked *before* calling AniList. The old order burned a rate-limited
     // AniList request even for a manga that was already in the database.
@@ -69,7 +70,10 @@ async function createManga(interaction: ChatInputCommandInteraction): Promise<vo
         chapter,
         name,
         sites: [],
-        alert: 1,
+        // A must-watch entry is a backlog item: it must never raise alerts. The scraper
+        // skips it on both counts — status and alert.
+        alert: mustWatch ? 0 : 1,
+        status: mustWatch ? "must_watch" : "active",
         ...(infos ? { infos } : {}),
     };
 
@@ -81,15 +85,24 @@ async function createManga(interaction: ChatInputCommandInteraction): Promise<vo
     const notes: string[] = [];
     if (!infos && anilistId) notes.push("_Infos AniList indisponibles — relancez `/update all` plus tard._");
 
+    if (mustWatch) {
+        const marked = await setMediaListStatus(anilistId, "PLANNING");
+        notes.push(
+            marked ? "Marqué **PLANNING** sur AniList." : "_Non marqué sur AniList (token absent ou API indisponible)._"
+        );
+    }
+
     await respond(interaction, [
         resultSummary(
-            `📕 ${manga.name}`,
+            `${mustWatch ? "📖" : "📕"} ${manga.name}`,
             [
-                `Manga ajouté. **${count}** site${count > 1 ? "s" : ""} lié${count > 1 ? "s" : ""} sur ${sites.length} testé${sites.length > 1 ? "s" : ""}.`,
+                `${mustWatch ? "Ajouté aux **must watch**" : "Manga ajouté"}. ` +
+                    `**${count}** site${count > 1 ? "s" : ""} lié${count > 1 ? "s" : ""} sur ${sites.length} testé${sites.length > 1 ? "s" : ""}.`,
                 ...notes,
             ].join("\n"),
             linked,
-            failures
+            failures,
+            mustWatch ? COLORS.info : COLORS.success
         ),
     ]);
 }
@@ -133,6 +146,11 @@ export default new Command({
                 )
                 .addStringOption(option =>
                     option.setName("name").setDescription("The name of the manga").setRequired(true)
+                )
+                .addBooleanOption(option =>
+                    option
+                        .setName("must_watch")
+                        .setDescription("Backlog: pas d'alerte, jamais scrapé, marqué PLANNING sur AniList")
                 )
         )
         .addSubcommand(subcommand =>
