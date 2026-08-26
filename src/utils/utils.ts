@@ -61,8 +61,30 @@ export async function mapWithConcurrency<T, R>(
     return results;
 }
 
+/**
+ * Coerces a possibly-null database field to a string.
+ *
+ * The production `sites` table lost its NOT NULL constraints during an earlier
+ * hand-run migration, so rows with a null `site` or `url` do exist and reach the
+ * rendering layer.
+ */
+export function text(value: string | null | undefined, fallback = ""): string {
+    return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
 /** Truncates to `max` characters, appending an ellipsis when it had to cut. */
-export function truncate(text: string, max: number): string {
-    if (text.length <= max) return text;
-    return text.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
+export function truncate(value: string | null | undefined, max: number): string {
+    const source = text(value);
+    if (source.length <= max) return source;
+    return source.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
+}
+
+/** Locale-aware comparison that tolerates null fields, sorting them last. */
+export function compareNames(a: string | null | undefined, b: string | null | undefined): number {
+    const left = text(a);
+    const right = text(b);
+    if (!left && !right) return 0;
+    if (!left) return 1;
+    if (!right) return -1;
+    return left.localeCompare(right, "fr", { sensitivity: "base" });
 }

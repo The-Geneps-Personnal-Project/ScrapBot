@@ -4,7 +4,7 @@ import { Command } from "../classes/command";
 import { getMangaFromName } from "../../API/queries/get";
 import { getCachedMangas, getCachedSites } from "../../API/cache";
 import { isStringSimilarity } from "../../utils/utils";
-import { ListOptions, listControls, mangaCard, mangaListPage, siteListPage } from "../ui";
+import { ListOptions, listControls, mangaCard, mangaListPage, mustWatchListPage, siteListPage } from "../ui";
 import { respond, respondError } from "../ui/reply";
 
 export const DEFAULT_LIST_OPTIONS: ListOptions = { page: 0, sort: "name", alertsOnly: false };
@@ -34,10 +34,15 @@ async function showSites(interaction: ChatInputCommandInteraction): Promise<void
     await respond(interaction, [siteListPage(await getCachedSites())]);
 }
 
+async function showMustWatch(interaction: ChatInputCommandInteraction): Promise<void> {
+    await respond(interaction, [mustWatchListPage(await getCachedMangas())]);
+}
+
 const handlers: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
     manga: showManga,
     all: showAll,
     sites: showSites,
+    "must-watch": showMustWatch,
 };
 
 export default new Command({
@@ -61,6 +66,9 @@ export default new Command({
         )
         .addSubcommand(subcommand =>
             subcommand.setName("sites").setDescription("Afficher tous les sites enregistrés")
+        )
+        .addSubcommand(subcommand =>
+            subcommand.setName("must-watch").setDescription("Afficher la liste des must watch")
         ) as SlashCommandBuilder,
 
     run: async ({ client, interaction }) => {

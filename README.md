@@ -39,7 +39,7 @@ startup and refuses to boot with a readable message if something required is mis
 | `NODE_ENV` | — | `development` (default) or `production` |
 | `UPDATE` / `ERROR` / `BACKUP` | no | Channel IDs used in production |
 | `TEST_UPDATE` / `TEST_ERROR` / `TEST_BACKUP` | no | Channel IDs used in development |
-| `ANILIST_TOKEN` | no | Only needed to push read progress to AniList. The public metadata query is unauthenticated. |
+| `ANILIST_TOKEN` | no | Needed to push read progress to AniList and to mark must-watch entries PLANNING/CURRENT. The public metadata query is unauthenticated. |
 | `THREADS` | no | Scraping worker threads (default 4) |
 | `PUPPETEER_EXECUTABLE_PATH` | no | Chromium binary for JavaScript-rendered sites. On a Pi: `apt install chromium-browser`. |
 | `BACKUP_ENABLED` | no | Enables message archiving. Requires the privileged MessageContent intent — see `src/bot/backup.ts`. |
@@ -59,13 +59,30 @@ containers rather than classic embeds.
 - `/get all` — the whole library, paginated, with buttons to page through, a menu to
   sort (name / last update / chapter) and a toggle to show only mangas with alerts on.
 - `/get sites` — every registered site.
+- `/get must-watch` — the backlog (see below).
+
+#### `/status`
+
+How long until the next scraping pass, whether one is running right now, what the last
+one produced, and how many mangas were already notified today.
+
+#### Must-watch backlog
+
+`/create manga … must_watch:True` files an entry as backlog instead of active tracking:
+it lives in the same table with `status = must_watch`, is **never scraped and never
+raises alerts**, and is marked **PLANNING** on your AniList list. Metadata (tags,
+description, cover) and site linking work exactly as for a normal manga.
+
+- `/get must-watch` — list the backlog.
+- `/activate [manga] [chapter?]` — promote one to active tracking: alerts on, and marked
+  **CURRENT** on AniList. Optionally set the starting chapter.
 
 #### `/create`
 
 - `/create site [url]` — derives the site's URL patterns from its home page, then links
   it against every manga already registered.
-- `/create manga [anilist_id] [chapter] [name]` — creates a manga and links it against
-  every registered site. `anilist_id` may be `0` if the manga is not on AniList or you
+- `/create manga [anilist_id] [chapter] [name] [must_watch?]` — creates a manga and links
+  it against every registered site. `anilist_id` may be `0` if the manga is not on AniList or you
   do not want to track it. If AniList is unreachable the manga is still created; run
   `/update all` later to backfill the metadata.
 - `/create site_to_manga [manga] [site]` — links an existing pair.

@@ -43,6 +43,20 @@ export function isScrapingInProgress(): boolean {
     return scrapingInProgress;
 }
 
+export interface RunSummary {
+    startedAt: Date;
+    finishedAt: Date;
+    results: number;
+    errors: number;
+}
+
+/** Outcome of the most recent run, so /status can report more than a countdown. */
+let lastRun: RunSummary | null = null;
+
+export function getLastRun(): RunSummary | null {
+    return lastRun;
+}
+
 class TaskTimeoutError extends Error {
     constructor(mangaName: string) {
         super(`Timed out after ${TASK_TIMEOUT_MS}ms scraping ${mangaName}`);
@@ -103,7 +117,14 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
     client.logger(`Client has ${client.dailyFeed.length} mangas in daily feed.`);
 
     const queue = elements.filter(
-        manga => manga.alert === 1 && manga.sites.length > 0 && !client.dailyFeed.includes(manga.name)
+        manga =>
+            // Must-watch entries are backlog items: never scraped, never alerted on.
+            // Checked explicitly rather than relying on alert alone, so a manually
+            // flipped alert cannot pull one back into the rotation.
+            manga.status !== "must_watch" &&
+            manga.alert === 1 &&
+            manga.sites.length > 0 &&
+            !client.dailyFeed.includes(manga.name)
     );
 
     if (queue.length === 0) {
@@ -247,9 +268,12 @@ export async function initiateScraping(client: CustomClient): Promise<void> {
     scrapingInProgress = true;
     const startedAt = Date.now();
 
+    let results: ScrapingResult[] = [];
+    let errors: ScrapingError[] = [];
+
     try {
         const mangas = await getAllMangas();
-        const [results, errors] = await scrapeSiteInfo(client, mangas);
+        [results, errors] = await scrapeSiteInfo(client, mangas);
 
         if (errors.length > 0) await sendErrorMessage(errors, client);
 
@@ -266,6 +290,12 @@ export async function initiateScraping(client: CustomClient): Promise<void> {
         client.logger(`Scraping run failed: ${(error as Error).message}`);
     } finally {
         scrapingInProgress = false;
+        lastRun = {
+            startedAt: new Date(startedAt),
+            finishedAt: new Date(),
+            results: results.length,
+            errors: errors.length,
+        };
         client.logger(`Execution time: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
     }
 }

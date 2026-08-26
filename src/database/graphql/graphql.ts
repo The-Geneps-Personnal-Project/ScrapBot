@@ -155,6 +155,43 @@ export async function getMangaInfos(id: number): Promise<MangaExtraInfo | null> 
     }
 }
 
+const statusMutation = `
+mutation ($mediaId: Int, $status: MediaListStatus) {
+    SaveMediaListEntry(mediaId: $mediaId, status: $status) {
+        mediaId
+        status
+    }
+}
+`;
+
+/** Subset of AniList's MediaListStatus the bot uses. */
+export type MediaListStatus = "PLANNING" | "CURRENT";
+
+/**
+ * Marks an entry on the user's AniList list: PLANNING when it is added as must-watch,
+ * CURRENT when it is promoted to active.
+ *
+ * Returns false rather than throwing when the token is missing or AniList refuses —
+ * this is a nice-to-have that must never abort the local operation.
+ */
+export async function setMediaListStatus(mediaId: number, status: MediaListStatus): Promise<boolean> {
+    const token = process.env.ANILIST_TOKEN;
+
+    if (!token) {
+        console.warn(`ANILIST_TOKEN is not set — not marking ${mediaId} as ${status} on AniList.`);
+        return false;
+    }
+    if (!mediaId) return false;
+
+    try {
+        await anilistRequest({ query: statusMutation, variables: { mediaId, status } }, token);
+        return true;
+    } catch (error) {
+        console.error(`Failed to mark ${mediaId} as ${status} on AniList: ${(error as Error).message}`);
+        return false;
+    }
+}
+
 /** Pushes read progress back to the user's AniList list. Requires a token. */
 export async function updateList(results: ScrapingResult[]): Promise<void> {
     const token = process.env.ANILIST_TOKEN;
