@@ -1,26 +1,23 @@
-import { Event } from "../classes/events";
-import { TextChannel, EmbedBuilder, Message } from "discord.js";
+import { Message, PartialMessage, TextChannel } from "discord.js";
 
-async function getBackup(channels: TextChannel): Promise<Number> {
-    const lastmessage = await channels.messages.fetch({ limit: 1 });
-    return Number(lastmessage.first()?.embeds[0].data.title?.replace(/[^0-9]/g, ""));
-}
+import { Event } from "../classes/events";
+import CustomClient from "../classes/client";
+import { archiveDeletedMessages, backupEnabled } from "../backup";
 
 export default new Event({
     name: "messageDelete",
-    run: async (client, message) => {
-        if (!message.author.bot) return;
-        const channel = client.chans.get("backup") as TextChannel;
+    run: async (client: CustomClient, message: Message | PartialMessage) => {
+        if (!backupEnabled()) return;
 
-        if (message.id !== channel.id) return;
+        const backup = client.chans.get("backup") as TextChannel | undefined;
+        if (!backup) return;
 
-        const backupNumber = await getBackup(channel);
-        const embed = new EmbedBuilder()
-            .setTitle(`Backup n°${Number(backupNumber) + 1}`)
-            .setDescription(`${message.content}`)
-            .setColor("#dd5f53")
-            .setTimestamp();
+        // Only archive messages deleted from the updates channel. The original check
+        // compared a *message* id against a *channel* id, which is always true, so the
+        // handler returned early every single time and the feature never ran.
+        const source = client.chans.get("updates");
+        if (!source || message.channelId !== source.id) return;
 
-        channel.send({ embeds: [embed] });
+        await archiveDeletedMessages(client, backup, [message]);
     },
 });

@@ -1,91 +1,107 @@
 import { parentPort, threadId } from "worker_threads";
-import { MangaInfo, ScrapingResult, ScrapingError } from "../types/types";
-import { getChapterElement } from "./seed";
-import { fetchSiteDOM } from "../utils/fetch";
 
+import { MangaInfo, ScrapingResult, SiteInfo, WorkerTask } from "../types/types";
+import { getChapterLinks } from "./seed";
+import { withSiteDOM } from "../utils/fetch";
 
-(async () => {
-    parentPort?.on("message", async (task: { manga: MangaInfo }) => {
-        const { manga } = task;
+const log = (message: string) => console.log(`[${new Date().toLocaleString()}] Worker ${threadId} ${message}`);
 
-        let maxChapter = Number(manga.chapter);
-        let maxChapterSite: MangaInfo["sites"][number] | null = null;
-        let maxChapterURL = "";
-        let lastChapterText = "";
+interface Candidate {
+    chapter: number;
+    href: string;
+    site: SiteInfo;
+}
 
-        let foundNewChapter = false;
-        let encounteredError = false;
-        let responseSent = false;
+interface ScrapeOutcome {
+    /** Highest chapter released across every site. */
+    latest: Candidate | null;
+    /** Lowest unread chapter — the one the reader should open first. */
+    next: Candidate | null;
+    /** Sites that threw. Used to tell "no new chapter" apart from "every site is broken". */
+    failures: number;
+}
 
-        const timeout = setTimeout(() => {
-            if (!responseSent) {
-                parentPort?.postMessage({ type: "empty" });
-                responseSent = true;
-            }
-        }, 2 * 60 * 1000); // 2 minutes
+/**
+ * Scrapes one manga across all of its sites.
+ *
+ * There is deliberately no timeout here: the parent pool owns the per-task deadline
+ * and kills the worker outright when it expires. The previous worker-side timeout
+ * only *reported* "empty" while leaving the site loop running, so the pool would
+ * hand this thread a second manga while the first was still in flight.
+ */
+async function scrapeManga(manga: MangaInfo): Promise<ScrapeOutcome> {
+    const currentChapter = Number(manga.chapter) || 0;
+    const candidates: Candidate[] = [];
+    let failures = 0;
 
-        const sendResponse = (response: { type: string; data?: ScrapingResult | ScrapingError }) => {
-            if (!responseSent) {
-                clearTimeout(timeout);
-                parentPort?.postMessage(response);
-                responseSent = true;
-            }
-        };
-
-        for (const site of manga.sites) {
-            try {
-                const document = await fetchSiteDOM(site.url);
-
-                console.log(`[${new Date().toLocaleString()}] Worker ${threadId} Going ${document.location.href}, looking for ${site.url}`);
-
-                if (!document.location.href.includes(site.url)) continue;
-
-                lastChapterText = await getChapterElement(document, site.chapter_url.split("/").at(-2) ?? "", site, manga);
-
-                const lastChapterTextMatch = lastChapterText
-                    ?.replace(/\/$/, "")
-                    ?.split("/")
-                    .at(-1)
-                    ?.match(/(\d+(?:[\.-]\d+)?)/);
-                const lastChapter = lastChapterTextMatch ? parseFloat(lastChapterTextMatch[0].replace("-", ".")) : NaN;
-
-                console.log(
-                    `[${new Date().toLocaleString()}] Worker ${threadId} Scraped ${manga.name} at ${site.url}: ${lastChapter}`
-                );
-
-                if (!isNaN(lastChapter)) {
-                    if (lastChapter > maxChapter) {
-                        maxChapter = lastChapter;
-                        maxChapterSite = site;
-                        maxChapterURL = lastChapterText;
-                    }
-                    foundNewChapter = true;
+    for (const site of manga.sites) {
+        try {
+            const links = await withSiteDOM(site.url, async page => {
+                if (page.redirected) {
+                    log(`${site.url} redirected to ${page.finalUrl}, skipping.`);
+                    return [];
                 }
-            } catch (error) {
-                console.error(`[${new Date().toLocaleString()}] Worker ${threadId} Failed to scrape ${manga.name} at ${site.url}: ${error}`);
-                encounteredError = true;
-            }
-        }
+                return getChapterLinks(page.document, site.chapter_url.split("/").at(-2) ?? "", site, manga);
+            });
 
-        if (maxChapterSite !== null) {
-            sendResponse({
+            for (const link of links) {
+                if (link.chapter > currentChapter) {
+                    candidates.push({ chapter: link.chapter, href: link.href, site });
+                }
+            }
+
+            log(`Scraped ${manga.name} at ${site.url}: ${links.length} chapter link(s)`);
+        } catch (error) {
+            failures++;
+            log(`Failed to scrape ${manga.name} at ${site.url}: ${(error as Error).message}`);
+        }
+    }
+
+    if (candidates.length === 0) return { latest: null, next: null, failures };
+
+    // Sorting ascending makes the first entry the oldest unread chapter and the last
+    // the newest. When 505 is read and 506..510 are out, `next` is 506 and `latest`
+    // is 510 — the notification reports the range but links what to actually open.
+    candidates.sort((a, b) => a.chapter - b.chapter);
+
+    return {
+        latest: candidates[candidates.length - 1],
+        next: candidates[0],
+        failures,
+    };
+}
+
+parentPort?.on("message", async (task: WorkerTask) => {
+    const { manga } = task;
+
+    try {
+        const { latest, next, failures } = await scrapeManga(manga);
+
+        if (latest && next) {
+            parentPort?.postMessage({
                 type: "result",
                 data: {
                     manga,
-                    lastChapter: maxChapter.toString(),
-                    site: maxChapterSite,
-                    url: maxChapterURL,
-                } as ScrapingResult,
+                    lastChapter: latest.chapter.toString(),
+                    nextChapter: next.chapter.toString(),
+                    site: next.site,
+                    url: next.href,
+                } satisfies ScrapingResult,
             });
-        } else if (encounteredError && !foundNewChapter) {
-            sendResponse({
+        } else if (failures > 0 && failures === manga.sites.length) {
+            // Every site failed — that is a scraping problem worth reporting, unlike
+            // simply finding no new chapter.
+            parentPort?.postMessage({
                 type: "error",
-                data: { name: manga.name, error: "Failed to scrape any site for updates." } as ScrapingError,
+                data: { name: manga.name, error: `All ${failures} site(s) failed to scrape.` },
             });
         } else {
-            sendResponse({
-                type: "empty",
-            });
+            parentPort?.postMessage({ type: "empty" });
         }
-    });
-})();
+    } catch (error) {
+        parentPort?.postMessage({
+            type: "error",
+            data: { name: manga.name, error: (error as Error).message },
+        });
+    }
+});

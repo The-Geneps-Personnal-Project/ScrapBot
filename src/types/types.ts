@@ -1,13 +1,12 @@
-import { Worker } from 'worker_threads';
 export interface MangaInfo {
-    id?: Number;
+    id?: number;
     sites: SiteInfo[];
-    anilist_id: Number;
-    alert?: Number;
+    anilist_id: number;
+    alert?: number;
     chapter: string;
     name: string;
     last_update?: string;
-    infos?: GraphqlQueryMediaOutput;
+    infos?: MangaExtraInfo;
 }
 
 export interface SiteInfo {
@@ -18,16 +17,34 @@ export interface SiteInfo {
     chapter_limiter: string;
 }
 
+/**
+ * Enrichment pulled from AniList and persisted by ScrapAPI.
+ *
+ * `coverImage` is a plain URL string. AniList returns `coverImage { medium }` as an
+ * object, so the GraphQL layer flattens it at the boundary — that way this type
+ * matches both what the API stores (a TEXT column) and what it returns.
+ */
+export interface MangaExtraInfo {
+    tags: { name: string }[];
+    description: string;
+    coverImage: string;
+}
+
 export interface ScrapingResult {
     manga: MangaInfo;
+    /** Highest chapter available across every site — what progress is synced to. */
     lastChapter: string;
+    /** First unread chapter. When 506..510 drop at once this is 506, not 510. */
+    nextChapter: string;
+    /** The site `url` points at, i.e. the one hosting `nextChapter`. */
     site: SiteInfo;
+    /** Link to `nextChapter` — the chapter the reader should open first. */
     url: string;
 }
 
 export interface ScrapingError {
     name: string;
-    error: unknown;
+    error: string;
 }
 
 export interface GraphqlQuery {
@@ -41,22 +58,16 @@ export interface GraphqlParams {
     progress?: number;
 }
 
-export interface GraphqlQueryMediaOutput {
-    tags: { name: string }[];
-    description: string;
-    coverImage: string;
-}
+/** Messages a scraping worker may send back to the pool. */
+export type WorkerMessage =
+    | { type: "result"; data: ScrapingResult }
+    | { type: "error"; data: ScrapingError }
+    | { type: "empty" };
 
-export interface WorkerData {
+export interface WorkerTask {
     manga: MangaInfo;
-}
-
-export interface CustomWorker {
-    worker: Worker;
-    status: boolean;
-    name: string;
 }
 
 export type ScrapingOutcome = [ScrapingResult[], ScrapingError[]];
 
-export type linkResult = [number, string[]];
+export type linkResult = [number, string[], ScrapingError[]];

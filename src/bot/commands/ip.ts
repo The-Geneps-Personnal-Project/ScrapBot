@@ -1,30 +1,21 @@
-import ip from 'ip';
+import ip from "ip";
 import { SlashCommandBuilder } from "discord.js";
+
 import { Command } from "../classes/command";
+import { COLORS, noticeCard } from "../ui";
+import { respond, respondError } from "../ui/reply";
 
 export default new Command({
-    builder: new SlashCommandBuilder()
-        .setName("ip")
-        .setDescription("get IP") as SlashCommandBuilder,
-    run: async ({ client, interaction }) => {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply().catch(console.error);
-        }
-        
-        try {
-            const ipAddress = ip.address();
-            await interaction.editReply(`Your IP address is: ${ipAddress}`);
-            client.logger(`IP address retrieved: ${ipAddress}`);
-        } catch (error) {
-            client.logger(`Failed to get manga: ${(error as Error).message}`);
-            if (!interaction.replied) {
-                await interaction
-                    .followUp({ content: `Error: ${(error as Error).message}`, ephemeral: true })
-                    .catch(console.error);
-            } else {
-                await interaction.editReply(`Error: ${(error as Error).message}`).catch(console.error);
-            }
-        }
-    }
-});
+    builder: new SlashCommandBuilder().setName("ip").setDescription("get IP") as SlashCommandBuilder,
 
+    run: async ({ client, interaction }) => {
+        try {
+            const address = ip.address();
+            await respond(interaction, [noticeCard("🖧 Adresse IP", `\`${address}\``, COLORS.info)]);
+            client.logger(`IP address retrieved: ${address}`);
+        } catch (error) {
+            client.logger(`Failed to get IP: ${(error as Error).message}`);
+            await respondError(interaction, error, "Lecture IP impossible");
+        }
+    },
+});

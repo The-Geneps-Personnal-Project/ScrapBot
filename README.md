@@ -1,111 +1,121 @@
 # ScrapTS
 
-ScrapTS is a simple web scraping tool that allows you to scrape websites and extract data from them. It is written in TypeScript and uses the [Puppeteer](https://pptr.dev/) library for parsing HTML.
+ScrapTS is a manga chapter tracker: it scrapes reader sites, tells you in Discord when
+a new chapter is out, and keeps your AniList progress in sync.
 
-The objective is to allow anyone to scrap mangas from any websites and have alerts everyday when a new chapter is released.
+Pages are parsed with `fetch` + [JSDOM](https://github.com/jsdom/jsdom). JSDOM does not
+run JavaScript, so sites that render their content client-side fall back to a headless
+Chromium through [puppeteer-core](https://pptr.dev/) — see `PUPPETEER_EXECUTABLE_PATH`
+below. Without that variable those sites simply fail with an explicit error.
 
 ## Installation
 
 ```bash
 npm install
+npm run build
 ```
-or
-```bash
-yarn install
-```
+
+Requires **Node 20+**. You also need the companion
+[API](https://github.com/The-Geneps-Personnal-Project/ScrapAPI) running.
 
 ## Usage
 
 ```bash
-npm run start
+npm run dev     # run directly
+npm run start   # run under forever (deployment)
+npm run lint
 ```
 
 ## Environment variables
 
-```bash
-# Discord.js
-TOKEN= # Discord Bot Token
-GUILD_ID= # Discord Guild ID
+Copy `.env.example` to `.env` and fill it in. The bot validates its configuration at
+startup and refuses to boot with a readable message if something required is missing.
 
-BACKUP= # Discord Channel ID for Backup
-UPDATE= # Discord Channel ID for Update
-ERROR= # Discord Channel ID for Error
-
-# Discord Test
-TEST_BACKUP= # Discord Channel ID for Backup in development
-TEST_UPDATE= # Discord Channel ID for Update in development
-TEST_ERROR= # Discord Channel ID for Error in development
-
-# Anilist
-ANILIST_TOKEN= # Anilist Token
-ANILIST_ID= # Anilist account ID
-
-# Database
-DB_NAME= # Database name
-DB_TEST= # Database name in development
-
-# Puppeteer
-PUPPETEER_EXECUTABLE_PATH= # Path to Puppeteer executable | Keep empty if you want to use the default path
-
-# ENV
-NODE_ENV=development # development or production
-```
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `TOKEN` | yes | Discord bot token |
+| `GUILD_ID` | yes | Guild the slash commands are deployed to |
+| `API_URL` / `API_TEST_URL` | yes | ScrapAPI base URL — which one is used depends on `NODE_ENV` |
+| `NODE_ENV` | — | `development` (default) or `production` |
+| `UPDATE` / `ERROR` / `BACKUP` | no | Channel IDs used in production |
+| `TEST_UPDATE` / `TEST_ERROR` / `TEST_BACKUP` | no | Channel IDs used in development |
+| `ANILIST_TOKEN` | no | Only needed to push read progress to AniList. The public metadata query is unauthenticated. |
+| `THREADS` | no | Scraping worker threads (default 4) |
+| `PUPPETEER_EXECUTABLE_PATH` | no | Chromium binary for JavaScript-rendered sites. On a Pi: `apt install chromium-browser`. |
+| `BACKUP_ENABLED` | no | Enables message archiving. Requires the privileged MessageContent intent — see `src/bot/backup.ts`. |
 
 ## Discord
 
-This project uses [Discord.js](https://discord.js.org/) to receives updates and send commands
+Built on [discord.js](https://discord.js.org/) v14 using **Components V2**
+(`ContainerBuilder`, `SectionBuilder`, `SeparatorBuilder`), so responses are rich
+containers rather than classic embeds.
 
 ### Commands
 
-`/create [site|manga]`
+#### `/get`
 
-Create a new manga or site.
+- `/get manga [manga]` — full card for one manga: cover, description, tags, chapter,
+  alert state, last update, AniList link.
+- `/get all` — the whole library, paginated, with buttons to page through, a menu to
+  sort (name / last update / chapter) and a toggle to show only mangas with alerts on.
+- `/get sites` — every registered site.
 
-#### Site
-̀`/create site [url]`
+#### `/create`
 
-Scrapes all the necessary information from the given URL.
+- `/create site [url]` — derives the site's URL patterns from its home page, then links
+  it against every manga already registered.
+- `/create manga [anilist_id] [chapter] [name]` — creates a manga and links it against
+  every registered site. `anilist_id` may be `0` if the manga is not on AniList or you
+  do not want to track it. If AniList is unreachable the manga is still created; run
+  `/update all` later to backfill the metadata.
+- `/create site_to_manga [manga] [site]` — links an existing pair.
 
-- `[url]`: The URL of the site to be scraped.
-  
+#### `/update`
 
-#### Manga
+- `/update manga [manga] [key] [value]` — `key` is `alert` or `chapter`.
+- `/update site [site] [url]` — re-derives a site's URL patterns.
+- `/update all [manga|all]` — links a manga (or every manga) against any site it is not
+  yet on, and backfills missing AniList metadata. Above 8 mangas the job is detached and
+  reports into the updates channel, because a full pass outlives Discord's 15-minute
+  interaction token.
 
-`/create manga [anilist_id] [chapter] [name] [site]`
+#### `/remove`
 
-Creates a new manga entry.
+- `/remove [manga|site|site_from_manga]`
 
-- `[anilist_id]`: The ID of the manga from Anilist. Keep to 0 if
-  - The manga is not on Anilist.
-  - You don't want to track it
-  - You don't use Anilist
-  
-- `[chapter]`: The last chapter you read from the manga.
-- `[name]`: The name of the manga.
-- `[site]`: The site where you want to read the manga (You can add more sites with the `create site_to_manga` command).
+#### `/run`
 
-#### Common commands
-  
-- `/remove [site|manga]`: Remove a manga or site.
+Triggers a scraping pass immediately. Runs are mutually exclusive: if one is already in
+progress the command says so instead of starting a second.
 
-- `/update [site|manga]`: Update a manga or site.
+### Notifications
 
-- `/run`: Run the scraper to gather the latest data from the specified sites and mangas.
- - `/create site_to_manga [manga] [site]`: Add a site to a manga.
-   - `[manga]`: The manga name that will be linked to the site.
-   - `[site]`: The site name that will be linked to the manga.
-  
-#### Autocompletion and Choices
+When several chapters drop at once, the notification reports the full range and links
+the **first unread** chapter — reading 505 with 510 out links chapter 506, not 510.
 
-Most of the command have autocompletion and choices to help you fill the command.
-The choices will show the mangas and sites that you have already registered in the database. It will display only the 25 only elements at first but you can type in the input field to have more refined results.
+### Autocompletion
 
-Discord is only a way of interact, a website will soon be available to have access to yours ressources in a more user-friendly way.
+Most options autocomplete from your registered mangas and sites, showing 25 entries at a
+time and narrowing as you type. Results are cached for 30 seconds so Discord's 3-second
+autocomplete deadline is met even on a Raspberry Pi.
 
-## Requirements
+## Scheduling
 
-To run this project bu yourself, you need the [API](https://github.com/The-Geneps-Personnal-Project/ScrapAPI)
+A cron job scrapes every 3 hours between 07:00 and 23:00, and the updates channel is
+cleared daily at 06:45.
+
+## Verifying the scraping pool
+
+```bash
+npm run build
+node scripts/verify-worker-pool.js
+```
+
+Runs several scraping passes against a local fixture server and asserts that the process
+exits on its own afterwards — a leaked worker thread keeps the Node event loop alive, so
+a hang is a leak. This also runs in CI.
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. For major changes, please open an issue first to discuss what
+you would like to change.

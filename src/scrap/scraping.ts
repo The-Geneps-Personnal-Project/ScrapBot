@@ -1,144 +1,271 @@
-import { ScrapingResult, MangaInfo, ScrapingError, ScrapingOutcome, SiteInfo, linkResult, CustomWorker } from "../types/types";
-import { getAllMangas, getAllSites } from "../API/queries/get";
+import { Worker } from "worker_threads";
+import path from "path";
+
+import {
+    MangaInfo,
+    ScrapingError,
+    ScrapingOutcome,
+    ScrapingResult,
+    SiteInfo,
+    WorkerMessage,
+    linkResult,
+} from "../types/types";
+import { getAllMangas } from "../API/queries/get";
 import { setMangasInfo } from "../API/queries/update";
 import { updateList } from "../database/graphql/graphql";
 import { sendErrorMessage, sendUpdateMessages } from "../bot/messages";
 import CustomClient from "../bot/classes/client";
 import { addSiteToManga } from "../API/queries/create";
-import { replaceURL, isValidPage } from "../utils/utils";
-import { Worker } from 'worker_threads';
-import path from "path";
-import { fetchSiteDOM } from "../utils/fetch";
+import { replaceURL, isValidPage, mapWithConcurrency } from "../utils/utils";
+import { withSiteDOM } from "../utils/fetch";
 
-const workers: CustomWorker[] = [];
 const THREAD_POOL_SIZE = Number(process.env.THREADS) || 4;
 
-export async function scrapExistingSite(
-    data: SiteInfo | MangaInfo,
-    exceptions: SiteInfo[] | MangaInfo[]
+/**
+ * Per-manga budget. A manga is checked against every one of its sites, so this has
+ * to cover several sequential fetches (each capped at DEFAULT_FETCH_TIMEOUT_MS).
+ */
+const TASK_TIMEOUT_MS = 3 * 60 * 1000;
+
+/** Hard ceiling on a whole run, so a pathological queue cannot occupy the pool forever. */
+const RUN_TIMEOUT_MS = 30 * 60 * 1000;
+
+/** Parallel HTTP requests when linking one entity against many — polite, but not serial. */
+const LINK_CONCURRENCY = 4;
+
+/**
+ * Guards against overlapping runs: the 3-hourly cron can otherwise re-enter while a
+ * previous run (or a manual /run) is still going, doubling thread pressure.
+ */
+let scrapingInProgress = false;
+
+export function isScrapingInProgress(): boolean {
+    return scrapingInProgress;
+}
+
+class TaskTimeoutError extends Error {
+    constructor(mangaName: string) {
+        super(`Timed out after ${TASK_TIMEOUT_MS}ms scraping ${mangaName}`);
+        this.name = "TaskTimeoutError";
+    }
+}
+
+function spawnWorker(): Worker {
+    return new Worker(path.join(__dirname, "scrapWorker.js"));
+}
+
+/**
+ * Sends one manga to a worker and resolves with its reply.
+ *
+ * Every listener registered here is removed in `cleanup`. That matters as much as
+ * the timeout: the previous implementation used a permanent `on("message")` handler
+ * per worker, so each run stacked another listener that captured *that run's*
+ * result arrays and kept them alive.
+ */
+function runTask(worker: Worker, manga: MangaInfo): Promise<WorkerMessage> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new TaskTimeoutError(manga.name));
+        }, TASK_TIMEOUT_MS);
+
+        const onMessage = (message: WorkerMessage) => {
+            cleanup();
+            resolve(message);
+        };
+        const onError = (error: Error) => {
+            cleanup();
+            reject(error);
+        };
+        const onExit = (code: number) => {
+            cleanup();
+            reject(new Error(`Worker exited with code ${code} while scraping ${manga.name}`));
+        };
+
+        function cleanup() {
+            clearTimeout(timer);
+            worker.off("message", onMessage);
+            worker.off("error", onError);
+            worker.off("exit", onExit);
+        }
+
+        worker.on("message", onMessage);
+        worker.on("error", onError);
+        worker.on("exit", onExit);
+        worker.postMessage({ manga });
+    });
+}
+
+export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
+    const results: ScrapingResult[] = [];
+    const errors: ScrapingError[] = [];
+
+    client.logger(`Client has ${client.dailyFeed.length} mangas in daily feed.`);
+
+    const queue = elements.filter(
+        manga => manga.alert === 1 && manga.sites.length > 0 && !client.dailyFeed.includes(manga.name)
+    );
+
+    if (queue.length === 0) {
+        client.logger("Nothing to scrape.");
+        return [results, errors];
+    }
+
+    const poolSize = Math.min(THREAD_POOL_SIZE, queue.length);
+    // One slot per worker. Slots are replaced in place when a worker has to be killed.
+    const pool: (Worker | null)[] = new Array(poolSize).fill(null);
+    let aborted = false;
+
+    const runTimer = setTimeout(() => {
+        aborted = true;
+        queue.length = 0;
+        client.logger(`Global timeout reached after ${RUN_TIMEOUT_MS / 60000}min. Terminating workers...`);
+        // Terminating makes any in-flight runTask reject via its "exit" listener,
+        // which unwinds the slots instead of leaving them hanging.
+        for (const worker of pool) void worker?.terminate();
+    }, RUN_TIMEOUT_MS);
+
+    const runSlot = async (slot: number): Promise<void> => {
+        pool[slot] = spawnWorker();
+
+        while (!aborted) {
+            const manga = queue.shift();
+            if (!manga) return;
+
+            const worker = pool[slot];
+            if (!worker) return;
+
+            try {
+                const message = await runTask(worker, manga);
+
+                if (message.type === "result") {
+                    results.push(message.data);
+                    client.dailyFeed.push(message.data.manga.name);
+                } else if (message.type === "error") {
+                    errors.push(message.data);
+                }
+            } catch (error) {
+                if (aborted) return;
+
+                client.logger(`Slot ${slot} failed on ${manga.name}: ${(error as Error).message}`);
+                errors.push({ name: manga.name, error: (error as Error).message });
+
+                // The worker is in an unknown state — it may still be mid-loop after a
+                // timeout. Kill it and start a fresh one so it can never end up running
+                // two scrape loops at once.
+                await worker.terminate().catch(() => undefined);
+                pool[slot] = aborted ? null : spawnWorker();
+            }
+        }
+    };
+
+    try {
+        await Promise.all(Array.from({ length: poolSize }, (_, slot) => runSlot(slot)));
+    } finally {
+        clearTimeout(runTimer);
+        // Unconditional teardown. This is the fix for the leak: the old code faked an
+        // "exit" event with worker.emit("exit", 0), which removed the worker from its
+        // bookkeeping array but never stopped the underlying thread.
+        const terminations = await Promise.allSettled(pool.map(worker => worker?.terminate()));
+        client.logger(`Terminated ${terminations.filter(t => t.status === "fulfilled").length} workers.`);
+        pool.fill(null);
+    }
+
+    client.logger(`Scraping completed. Results: ${results.length}, Errors: ${errors.length}`);
+    return [results, errors];
+}
+
+/**
+ * Checks whether `manga` exists on each of `sites`, and links the ones that answer.
+ * Used when a manga is created: one new manga against the known sites.
+ */
+export async function linkMangaToSites(manga: MangaInfo, sites: SiteInfo[]): Promise<linkResult> {
+    return linkPairs(
+        sites.map(site => ({ site, manga })),
+        pair => pair.site.site
+    );
+}
+
+/**
+ * Checks whether each of `mangas` exists on `site`, and links the ones that answer.
+ * Used when a site is created: one new site against the known mangas.
+ */
+export async function linkSiteToMangas(site: SiteInfo, mangas: MangaInfo[]): Promise<linkResult> {
+    return linkPairs(
+        mangas.map(manga => ({ site, manga })),
+        pair => pair.manga.name
+    );
+}
+
+/**
+ * Shared body of the two link helpers.
+ *
+ * Splitting the public entry points by intent replaces the old `'url' in data`
+ * discriminator, which inferred "site or manga?" by introspection and silently
+ * mis-classified a malformed `{}` as a manga — the origin of the
+ * "Cannot read properties of undefined (reading 'replace')" crash.
+ */
+async function linkPairs(
+    pairs: { site: SiteInfo; manga: MangaInfo }[],
+    label: (pair: { site: SiteInfo; manga: MangaInfo }) => string
 ): Promise<linkResult> {
-    // Determine if data is a Site or a Manga
-    const items = 'url' in data ? await getAllMangas() : await getAllSites();
-    const isSite = (item: any): item is SiteInfo => 'url' in item;
+    const linked: string[] = [];
+    const failures: ScrapingError[] = [];
 
-    const filteredItems = exceptions.length > 0 ? exceptions : items;
+    await mapWithConcurrency(pairs, LINK_CONCURRENCY, async pair => {
+        const { site, manga } = pair;
 
-    let count = 0;
-    let list: string[] = [];
+        if (!site?.url || !manga?.name) {
+            failures.push({ name: label(pair), error: "Incomplete site or manga record" });
+            return;
+        }
 
-    for (const item of filteredItems) {
-        const site = isSite(data) ? data : (item as SiteInfo);
-        const manga = isSite(data) ? (item as MangaInfo) : data;
         const url = site.url + replaceURL(manga.name);
 
         try {
-            const document = await fetchSiteDOM(url);
+            const matched = await withSiteDOM(url, page => isValidPage(page, url.replace(/\/$/, "")));
 
-            if (await isValidPage(document, url.replace(/\/$/, ''))) {
+            if (matched) {
                 await addSiteToManga(site.site, manga.name);
-                count++;
-                list.push(isSite(data) ? manga.name : site.site);
+                linked.push(label(pair));
             }
         } catch (error) {
-            console.error(`Failed to scrap ${site.site} for ${manga.name}: ${error}`);
+            failures.push({ name: label(pair), error: (error as Error).message });
         }
-    }
+    });
 
-    console.log(`Scraped ${count} sites`);
-    return [count, list];
+    console.log(`Linked ${linked.length} of ${pairs.length} candidates (${failures.length} failures).`);
+    return [linked.length, linked, failures];
 }
 
-
-export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]): Promise<ScrapingOutcome> {
-    const scrapingResults: ScrapingResult[] = [];
-    const scrapingErrors: ScrapingError[] = [];
-
-    client.logger(`Client has ${client.dailyFeed.length} mangas in daily feed.`);
-    const mangaQueue = [...elements.filter((manga) => manga.alert === 1 && manga.sites.length > 0 && !client.dailyFeed.includes(manga.name))];
-
-    const initializeWorker = (): CustomWorker => {
-        const worker = new Worker(path.join(__dirname + '/scrapWorker.js'));
-        const customWorker: CustomWorker = { worker, status: false, name: `Worker ${worker.threadId}` };
-
-        customWorker.worker.on('message', (message) => {
-            if (message.type === 'result') {
-                scrapingResults.push(message.data);
-                client.dailyFeed.push(message.data.name);
-            } else if (message.type === 'error') {
-                scrapingErrors.push(message.data);
-            }
-
-            if (mangaQueue.length === 0) customWorker.worker.emit('exit', 0);
-            else {
-                customWorker.status = false;
-                assignTaskToWorker(customWorker);
-            }
-        });
-
-        customWorker.worker.on('error', (error) => {
-            client.logger(`Error in ${customWorker.name}: ${error}`);
-            customWorker.status = false;
-            assignTaskToWorker(customWorker);
-        });
-
-        customWorker.worker.on('exit', (code) => {
-            if (code !== 0) client.logger(`${customWorker.name} stopped with exit code ${code}`);
-            workers.splice(workers.indexOf(customWorker), 1);
-        });
-
-        return customWorker;
-    };
-
-    const assignTaskToWorker = (worker: CustomWorker) => {
-        if (worker.status) return;
-        if (mangaQueue.length === 0) return;
-
-        const manga = mangaQueue.shift();
-        if (manga) {
-            client.logger(`Assigning task for ${manga.name} to ${worker.name}`);
-            worker.status = true;
-            worker.worker.postMessage({ manga });
-        }
-    };
-
-    for (let i = 0; i < THREAD_POOL_SIZE && workers.length !== THREAD_POOL_SIZE; i++) workers.push(initializeWorker());
-
-    const globalTimeout = setTimeout(() => {
-        client.logger(`Global timeout reached. Terminating all workers...`);
-        for (const worker of workers) {
-            worker.worker.terminate();
-            worker.status = false;
-            client.logger(`Worker ${worker.name} terminated and reset.`);
-        }
-        mangaQueue.length = 0;
-        client.logger(`Queue cleared.`);
-    }, 30 * 60 * 1000); // 30 minutes
-
-    while (workers.some(worker => worker.status) || mangaQueue.length > 0) {
-        for (const worker of workers) assignTaskToWorker(worker);
-        await new Promise((resolve) => setTimeout(resolve, 100));
+export async function initiateScraping(client: CustomClient): Promise<void> {
+    if (scrapingInProgress) {
+        client.logger("Scraping already in progress, skipping this trigger.");
+        return;
     }
 
-    clearTimeout(globalTimeout);
+    scrapingInProgress = true;
+    const startedAt = Date.now();
 
-    client.logger(`Scraping completed. Results: ${scrapingResults.length}, Errors: ${scrapingErrors.length}`);
-    return [scrapingResults, scrapingErrors];
-}
+    try {
+        const mangas = await getAllMangas();
+        const [results, errors] = await scrapeSiteInfo(client, mangas);
 
-export async function initiateScraping(client: CustomClient) {
-    console.time('Execution time');
-    const mangas: MangaInfo[] = await getAllMangas();
+        if (errors.length > 0) await sendErrorMessage(errors, client);
 
-    const [result, errors] = await scrapeSiteInfo(client, mangas);
-    if (errors && errors.length > 0) sendErrorMessage(errors, client);
-    if (result && result.length > 0) {
-        try {
-            await sendUpdateMessages(result, client);
-            setMangasInfo(result);
-            await updateList(result);
-        } catch (error) {
-            client.logger(`Failed to update: ${error}`);
+        if (results.length > 0) {
+            try {
+                await sendUpdateMessages(results, client);
+                await setMangasInfo(results);
+                await updateList(results);
+            } catch (error) {
+                client.logger(`Failed to publish updates: ${(error as Error).message}`);
+            }
         }
+    } catch (error) {
+        client.logger(`Scraping run failed: ${(error as Error).message}`);
+    } finally {
+        scrapingInProgress = false;
+        client.logger(`Execution time: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
     }
-    console.timeEnd('Execution time');
 }
