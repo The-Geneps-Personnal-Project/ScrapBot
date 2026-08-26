@@ -1,50 +1,54 @@
-import { SlashCommandBuilder, CommandInteraction } from "discord.js";
-import { getSiteFromName, getMangaFromName, getAllSites, getAllMangas } from "../../API/queries/get";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+
+import { getSiteFromName, getMangaFromName } from "../../API/queries/get";
+import { getCachedMangas, getCachedSites } from "../../API/cache";
 import { removeManga, removeSite, removeSiteFromManga } from "../../API/queries/delete";
 import { Command } from "../classes/command";
 import { isStringSimilarity } from "../../utils/utils";
+import { COLORS, noticeCard } from "../ui";
+import { respond, respondError } from "../ui/reply";
 
-async function site(interaction: CommandInteraction): Promise<void> {
-    try {
-        const url = interaction.options.get("site")?.value as string;
-        const existingSite = await getSiteFromName(url);
-        if (!existingSite) throw new Error("Site does not exists");
+async function deleteSite(interaction: ChatInputCommandInteraction): Promise<void> {
+    const name = interaction.options.getString("site", true);
 
-        await removeSite(url);
-        interaction.editReply(`Removed site ${url}.`);
-    } catch (error) {
-        interaction.editReply((error as Error).message);
-    }
+    const site = await getSiteFromName(name);
+    if (!site) throw new Error(`Le site \`${name}\` n'existe pas.`);
+
+    await removeSite(site.site);
+    await respond(interaction, [noticeCard("🗑️ Site supprimé", `**${site.site}** a été retiré.`, COLORS.warning)]);
 }
 
-async function manga(interaction: CommandInteraction): Promise<void> {
-    try {
-        const name = interaction.options.get("manga")?.value as string;
-        const existingManga = await getMangaFromName(name);
-        if (!existingManga) throw new Error("Manga does not exist");
+async function deleteManga(interaction: ChatInputCommandInteraction): Promise<void> {
+    const name = interaction.options.getString("manga", true);
 
-        await removeManga(name);
-        interaction.editReply(`Removed ${name} from the list.`);
-    } catch (error) {
-        interaction.editReply((error as Error).message);
-    }
+    const manga = await getMangaFromName(name);
+    if (!manga) throw new Error(`Le manga \`${name}\` n'existe pas.`);
+
+    await removeManga(manga.name);
+    await respond(interaction, [noticeCard("🗑️ Manga supprimé", `**${manga.name}** a été retiré.`, COLORS.warning)]);
 }
 
-async function siteFromManga(interaction: CommandInteraction): Promise<void> {
-    try {
-        const manga = interaction.options.get("manga")?.value as string;
-        const site = interaction.options.get("site")?.value as string;
-        const existingManga = await getMangaFromName(manga);
-        if (!existingManga) throw new Error("Manga does not exist");
-        const existingSite = await getSiteFromName(site);
-        if (!existingSite) throw new Error("Site does not exist");
+async function deleteSiteFromManga(interaction: ChatInputCommandInteraction): Promise<void> {
+    const mangaName = interaction.options.getString("manga", true);
+    const siteName = interaction.options.getString("site", true);
 
-        await removeSiteFromManga(existingSite.site, existingManga.name);
-        interaction.editReply(`Removed ${site} from ${manga}.`);
-    } catch (error) {
-        interaction.editReply((error as Error).message);
-    }
+    const manga = await getMangaFromName(mangaName);
+    if (!manga) throw new Error(`Le manga \`${mangaName}\` n'existe pas.`);
+
+    const site = await getSiteFromName(siteName);
+    if (!site) throw new Error(`Le site \`${siteName}\` n'existe pas.`);
+
+    await removeSiteFromManga(site.site, manga.name);
+    await respond(interaction, [
+        noticeCard("🔗 Lien supprimé", `\`${site.site}\` n'est plus lié à **${manga.name}**.`, COLORS.warning),
+    ]);
 }
+
+const handlers: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
+    manga: deleteManga,
+    site: deleteSite,
+    site_from_manga: deleteSiteFromManga,
+};
 
 export default new Command({
     builder: new SlashCommandBuilder()
@@ -93,47 +97,33 @@ export default new Command({
                         .setAutocomplete(true)
                 )
         ) as SlashCommandBuilder,
+
     run: async ({ client, interaction }) => {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply().catch(console.error);
-        }
         const subcommand = interaction.options.getSubcommand();
-        const subcommands: { [key: string]: (interaction: CommandInteraction) => Promise<void> } = {
-            manga: manga,
-            site: site,
-            site_from_manga: siteFromManga,
-        };
 
         try {
-            await subcommands[subcommand](interaction);
+            await handlers[subcommand](interaction);
             client.logger(`Removed ${subcommand}.`);
         } catch (error) {
             client.logger(`Failed to remove ${subcommand}: ${(error as Error).message}`);
-            if (!interaction.replied) {
-                await interaction
-                    .followUp({ content: `Error: ${(error as Error).message}`, ephemeral: true })
-                    .catch(console.error);
-            } else {
-                await interaction.editReply(`Error: ${(error as Error).message}`).catch(console.error);
-            }
+            await respondError(interaction, error, `Suppression impossible · ${subcommand}`);
         }
     },
+
     autocomplete: async interaction => {
         const focused = interaction.options.getFocused(true);
         let choices: { name: string; value: string }[] = [];
 
-        if (focused.name === "manga")
-            choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
-        else if (focused.name === "site")
-            choices = (await getAllSites()).map(site => ({ name: site.site, value: site.site }));
+        if (focused.name === "manga") {
+            choices = (await getCachedMangas()).map(manga => ({ name: manga.name, value: manga.name }));
+        } else if (focused.name === "site") {
+            choices = (await getCachedSites()).map(site => ({ name: site.site, value: site.site }));
+        }
 
         const filtered = choices
-            .filter(choice =>  {
-                const choiceText = choice.name.toLowerCase();
-                const similarity = isStringSimilarity(choiceText, focused.value.toLowerCase());
-                return similarity >= 0.5;
-            })
+            .filter(choice => isStringSimilarity(choice.name.toLowerCase(), focused.value.toLowerCase()) >= 0.5)
             .slice(0, 25);
-        await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
+
+        await interaction.respond(filtered);
     },
 });

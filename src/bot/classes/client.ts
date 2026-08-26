@@ -6,10 +6,13 @@ import { handleEvent } from "../handler";
 import { Command } from "./command";
 import { Event } from "./events";
 
+export type ChannelKey = "updates" | "error" | "backup";
+
 export default class CustomClient extends Client {
     commands: Collection<string, Command> = new Collection();
-    chans: Collection<string, TextChannel> = new Collection();
-    dailyFeed: String[] = [];
+    /** Keyed by role, not by Discord channel name — renaming a channel no longer breaks lookups. */
+    chans: Collection<ChannelKey, TextChannel> = new Collection();
+    dailyFeed: string[] = [];
 
     constructor() {
         super({
@@ -20,18 +23,39 @@ export default class CustomClient extends Client {
     async start() {
         await this.resolveModules();
         await this.login(process.env.TOKEN);
-        await this.resolveChannels();
     }
 
+    /**
+     * Resolves the three working channels from their configured IDs.
+     *
+     * Called from the `ready` handler rather than from `start()`: `ready` fires
+     * *during* login, so resolving afterwards left every early channel lookup racing
+     * against an empty collection.
+     */
     async resolveChannels() {
-        const ids =
-            process.env.NODE_ENV === "production"
-                ? [process.env.UPDATE, process.env.ERROR, process.env.BACKUP]
-                : [process.env.TEST_UPDATE, process.env.TEST_ERROR, process.env.TEST_BACKUP];
+        const isProduction = process.env.NODE_ENV === "production";
 
-        for (const id of ids) {
-            const chan = (await this.channels.fetch(id!)) as TextChannel;
-            this.chans.set(chan.name, chan);
+        const configured: Record<ChannelKey, string | undefined> = isProduction
+            ? { updates: process.env.UPDATE, error: process.env.ERROR, backup: process.env.BACKUP }
+            : { updates: process.env.TEST_UPDATE, error: process.env.TEST_ERROR, backup: process.env.TEST_BACKUP };
+
+        for (const [key, id] of Object.entries(configured) as [ChannelKey, string | undefined][]) {
+            if (!id) {
+                this.logger(`No channel ID configured for '${key}' — that feature is disabled.`);
+                continue;
+            }
+
+            try {
+                const channel = await this.channels.fetch(id);
+
+                if (channel?.isTextBased()) {
+                    this.chans.set(key, channel as TextChannel);
+                } else {
+                    this.logger(`Channel ${id} for '${key}' is not a text channel.`);
+                }
+            } catch (error) {
+                this.logger(`Failed to resolve '${key}' channel ${id}: ${(error as Error).message}`);
+            }
         }
     }
 
@@ -42,10 +66,9 @@ export default class CustomClient extends Client {
     async resolveModules() {
         const sharedSettings = {
             recursive: true,
-            filter: /\w*.[tj]s/g,
+            filter: /\w*\.[tj]s/g,
         };
 
-        // Commands
         requireAll({
             ...sharedSettings,
             dirname: path.join(__dirname, "../commands"),
@@ -56,7 +79,6 @@ export default class CustomClient extends Client {
             },
         });
 
-        // Events
         requireAll({
             ...sharedSettings,
             dirname: path.join(__dirname, "../events"),
@@ -69,9 +91,13 @@ export default class CustomClient extends Client {
     }
 
     async deployCommands() {
-        const guild = this.guilds.cache.get(process.env.GUILD_ID!)!;
-        const commandsJSON = [...this.commands.values()].map(x => x.builder.toJSON());
-        const commandsCol = await guild.commands.set(commandsJSON);
-        console.log(`Deployed ${commandsCol.size} commands.`);
+        const guildId = process.env.GUILD_ID;
+        if (!guildId) throw new Error("GUILD_ID is not set — cannot deploy slash commands.");
+
+        const guild = await this.guilds.fetch(guildId);
+        const commandsJSON = [...this.commands.values()].map(command => command.builder.toJSON());
+        const deployed = await guild.commands.set(commandsJSON);
+
+        this.logger(`Deployed ${deployed.size} commands.`);
     }
 }

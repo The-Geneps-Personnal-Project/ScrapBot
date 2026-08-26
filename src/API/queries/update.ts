@@ -1,38 +1,36 @@
 import { MangaInfo, ScrapingResult, SiteInfo } from "../../types/types";
 import { putToApi } from "../helper";
+import { invalidateCache } from "../cache";
 
+/**
+ * Persists the newly found chapter for each scraping result.
+ *
+ * Note the `for...of`: the previous version used `results.forEach(async r => await ...)`,
+ * so the callback's promises were never awaited — the function resolved immediately
+ * and its try/catch could not observe a single failure.
+ */
 export async function setMangasInfo(results: ScrapingResult[]): Promise<void> {
-    if (!results) throw new Error("No results provided");
-    try {
-        results.forEach(async result => {
-            await putToApi("mangas/chapter", {
-                name: result.manga.name,
-                chapter: result.lastChapter,
-                last_updated: new Date().toISOString(),
-            });
+    if (!results?.length) return;
+
+    for (const result of results) {
+        await putToApi("mangas/chapter", {
+            name: result.manga.name,
+            chapter: result.lastChapter,
+            last_updated: new Date().toISOString(),
         });
-    } catch (error) {
-        console.error(`Failed to set mangas info:`, error);
-        throw error;
     }
+
+    invalidateCache();
 }
 
 export async function updateSiteInfo(site: SiteInfo): Promise<void> {
     if (!site) throw new Error("No site provided");
-    try {
-        await putToApi("sites", site);
-    } catch (error) {
-        console.error(`Failed to update site:`, error);
-        throw error;
-    }
+    await putToApi("sites", site);
+    invalidateCache();
 }
 
 export async function updateMangaInfo(manga: MangaInfo): Promise<void> {
     if (!manga) throw new Error("No manga provided");
-    try {
-        await putToApi("mangas", manga);
-    } catch (error) {
-        console.error(`Failed to update manga:`, error);
-        throw error;
-    }
+    await putToApi("mangas", manga);
+    invalidateCache();
 }

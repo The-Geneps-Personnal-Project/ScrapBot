@@ -1,62 +1,90 @@
-import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { getMangaFromName, getAllMangas } from "../../API/queries/get";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+
 import { Command } from "../classes/command";
+import { getMangaFromName } from "../../API/queries/get";
+import { getCachedMangas, getCachedSites } from "../../API/cache";
+import { isStringSimilarity } from "../../utils/utils";
+import { ListOptions, listControls, mangaCard, mangaListPage, siteListPage } from "../ui";
+import { respond, respondError } from "../ui/reply";
+
+export const DEFAULT_LIST_OPTIONS: ListOptions = { page: 0, sort: "name", alertsOnly: false };
+
+/** Builds the paginated library view. Shared with the button/select handler. */
+export async function buildMangaList(options: ListOptions, ownerId: string) {
+    const mangas = await getCachedMangas();
+    const total = options.alertsOnly ? mangas.filter(manga => manga.alert).length : mangas.length;
+
+    return [mangaListPage(mangas, options), ...listControls(options, total, ownerId)];
+}
+
+async function showManga(interaction: ChatInputCommandInteraction): Promise<void> {
+    const name = interaction.options.getString("manga", true);
+    const manga = await getMangaFromName(name);
+
+    if (!manga) throw new Error(`Le manga \`${name}\` n'existe pas.`);
+
+    await respond(interaction, [mangaCard(manga)]);
+}
+
+async function showAll(interaction: ChatInputCommandInteraction): Promise<void> {
+    await respond(interaction, await buildMangaList(DEFAULT_LIST_OPTIONS, interaction.user.id));
+}
+
+async function showSites(interaction: ChatInputCommandInteraction): Promise<void> {
+    await respond(interaction, [siteListPage(await getCachedSites())]);
+}
+
+const handlers: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
+    manga: showManga,
+    all: showAll,
+    sites: showSites,
+};
 
 export default new Command({
     builder: new SlashCommandBuilder()
         .setName("get")
-        .setDescription("get a manga or a site")
-        .addStringOption(option =>
-            option
+        .setDescription("Consulter la bibliothèque")
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName("manga")
-                .setDescription("The manga to get")
-                .setAutocomplete(true)
-                .setRequired(true)
-        ) as SlashCommandBuilder,
-    run: async ({ client, interaction }) => {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply().catch(console.error);
-        }
-        
-        try {
-            const manga = await getMangaFromName(interaction.options.get("manga")?.value as string);
-            if (!manga) throw new Error("Manga does not exist");
-
-            const embed = new EmbedBuilder()
-                .setTitle(manga.name)
-                .setDescription((manga.infos?.description.split("<")[0] || "No description") + "\n**Tags**:\n" + manga.infos?.tags.map(tags => tags.name).join(", ") + "\n\n**Sites**:\n" + manga.sites.map(site => site.site).join(", "))
-                .addFields(
-                    [
-                        { name: "Alert", value: String(Boolean(manga.alert!)) , inline: true },
-                        { name: "Chapter", value: manga.chapter, inline: true },
-                        { name: "Last update", value: manga.last_update || "No data", inline: true },
-                        { name: "Anilist ID", value: String(manga.anilist_id), inline: true },
-                    ]
+                .setDescription("Afficher la fiche d'un manga")
+                .addStringOption(option =>
+                    option
+                        .setName("manga")
+                        .setDescription("Le manga à afficher")
+                        .setRequired(true)
+                        .setAutocomplete(true)
                 )
-                if (manga.infos?.coverImage) embed.setThumbnail(manga.infos?.coverImage)
-            
-            await interaction.editReply({ embeds: [embed] })
-            client.logger(`Got ${JSON.stringify(manga)}.`);
+        )
+        .addSubcommand(subcommand =>
+            subcommand.setName("all").setDescription("Afficher toute la liste des mangas, paginée")
+        )
+        .addSubcommand(subcommand =>
+            subcommand.setName("sites").setDescription("Afficher tous les sites enregistrés")
+        ) as SlashCommandBuilder,
+
+    run: async ({ client, interaction }) => {
+        const subcommand = interaction.options.getSubcommand();
+
+        try {
+            await handlers[subcommand](interaction);
+            client.logger(`Ran get ${subcommand}.`);
         } catch (error) {
-            client.logger(`Failed to get manga: ${(error as Error).message}`);
-            if (!interaction.replied) {
-                await interaction
-                    .followUp({ content: `Error: ${(error as Error).message}`, ephemeral: true })
-                    .catch(console.error);
-            } else {
-                await interaction.editReply(`Error: ${(error as Error).message}`).catch(console.error);
-            }
+            client.logger(`Failed to get ${subcommand}: ${(error as Error).message}`);
+            await respondError(interaction, error, "Lecture impossible");
         }
     },
+
     autocomplete: async interaction => {
         const focused = interaction.options.getFocused(true);
-        let choices: { name: string; value: string }[] = [];
 
-        choices = (await getAllMangas()).map(manga => ({ name: manga.name, value: manga.name }));
-
-        const filtered = choices
-            .filter(choice => choice.name.toLowerCase().includes(focused.value.toLowerCase()))
+        // Uses the same similarity filter as every other command; this one used to be
+        // the odd one out with a plain `.includes()`.
+        const filtered = (await getCachedMangas())
+            .map(manga => ({ name: manga.name, value: manga.name }))
+            .filter(choice => isStringSimilarity(choice.name.toLowerCase(), focused.value.toLowerCase()) >= 0.5)
             .slice(0, 25);
-        await interaction.respond(filtered.map(choice => ({ name: choice.name, value: choice.value })));
+
+        await interaction.respond(filtered);
     },
 });
