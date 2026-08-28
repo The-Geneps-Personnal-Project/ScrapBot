@@ -35,6 +35,13 @@ function buildPage() {
 
 async function main() {
     const server = http.createServer((req, res) => {
+        // Mirrors production: ScrapAPI hands the scraper `site.url + slug`, which has no
+        // trailing slash, and real sites 301 to the canonical slashed form. A build that
+        // skips redirected pages finds zero chapters here.
+        if (req.url === "/manga/test") {
+            res.writeHead(301, { Location: "/manga/test/" });
+            return res.end();
+        }
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(buildPage());
     });
@@ -58,7 +65,7 @@ async function main() {
         sites: [
             {
                 site: "local",
-                url: `${base}/manga/test/`,
+                url: `${base}/manga/test`,
                 // Mirrors what FetchSite derives: the list prefix shared by every chapter href.
                 chapter_url: `${base}/manga/`,
                 chapter_limiter: "/chapter-",

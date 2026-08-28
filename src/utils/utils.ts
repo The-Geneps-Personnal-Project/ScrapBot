@@ -9,16 +9,46 @@ const ERROR_TITLE_MARKERS = ["404", "not found", "page not found", "error", "sor
 
 const stripTrailingSlash = (url: string): string => url.replace(/\/+$/, "").toLowerCase();
 
+/** Host without `www.`, and path without a trailing slash — for comparing two URLs. */
+function locate(url: string): { host: string; path: string } {
+    try {
+        const parsed = new URL(url);
+        return {
+            host: parsed.hostname.replace(/^www\./i, "").toLowerCase(),
+            path: stripTrailingSlash(parsed.pathname),
+        };
+    } catch {
+        return { host: "", path: stripTrailingSlash(url) };
+    }
+}
+
 /**
- * A manga page is "valid" when the site actually served the URL we asked for.
+ * Is this page actually the manga we asked for?
  *
- * The previous implementation compared `document.location.href` against the
- * request URL, but JSDOM sets location from the URL it was constructed with — it
- * could never differ, so the check was a no-op. Redirect detection now comes from
- * the HTTP response itself (see `FetchedPage.finalUrl`).
+ * Redirects are normal — canonical trailing slashes, https upgrades, www, slug
+ * rewrites — so this compares loosely. Only two things disqualify a page: landing on
+ * a different host, or being bounced to the site root, which is how sites say "no such
+ * manga".
+ *
+ * The original check compared `document.location.href`, which JSDOM sets from the URL
+ * it was constructed with, so it could never differ and never rejected anything.
+ * Replacing it with strict equality then went too far the other way and rejected every
+ * redirecting site.
  */
 export function isValidPage(page: FetchedPage, expectedUrl: string): boolean {
-    if (stripTrailingSlash(page.finalUrl) !== stripTrailingSlash(expectedUrl)) return false;
+    const got = locate(page.finalUrl);
+    const want = locate(expectedUrl);
+
+    if (got.host !== want.host) return false;
+
+    // Bounced to the root while we asked for a deeper path: the manga is not here.
+    if (want.path !== "" && got.path === "") return false;
+
+    if (got.path !== want.path) {
+        // A rewritten path is fine as long as it still carries the slug we asked for.
+        const slug = want.path.split("/").filter(Boolean).at(-1) ?? "";
+        if (!slug || !got.path.includes(slug)) return false;
+    }
 
     const pageTitle = page.document.title.toLowerCase();
     return !ERROR_TITLE_MARKERS.some(marker => pageTitle.includes(marker));
