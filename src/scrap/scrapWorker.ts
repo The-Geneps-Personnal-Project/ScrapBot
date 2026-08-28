@@ -37,10 +37,13 @@ async function scrapeManga(manga: MangaInfo): Promise<ScrapeOutcome> {
     for (const site of manga.sites) {
         try {
             const links = await withSiteDOM(site.url, async page => {
-                if (page.redirected) {
-                    log(`${site.url} redirected to ${page.finalUrl}, skipping.`);
-                    return [];
-                }
+                // Parse whatever we landed on. Redirects are routine here — sites
+                // canonicalise a missing trailing slash, upgrade to https, or rewrite
+                // the slug — and skipping on any redirect made the scraper return
+                // nothing at all, with no error to show for it. Pages that are not the
+                // manga get filtered out below by the chapter_url and name checks.
+                if (page.redirected) log(`${site.url} redirected to ${page.finalUrl}`);
+
                 return getChapterLinks(page.document, site.chapter_url.split("/").at(-2) ?? "", site, manga);
             });
 

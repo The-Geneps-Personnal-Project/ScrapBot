@@ -140,16 +140,25 @@ Components V2 containers and carry no `content`, so reading `message.content` ca
 nothing — the digest is built from recorded update data instead, and no privileged
 intent is needed.
 
-## Verifying the scraping pool
+## Verification scripts
 
 ```bash
 npm run build
 node scripts/verify-worker-pool.js
+node scripts/verify-redirects.js
 ```
 
-Runs several scraping passes against a local fixture server and asserts that the process
-exits on its own afterwards — a leaked worker thread keeps the Node event loop alive, so
-a hang is a leak. This also runs in CI.
+`verify-worker-pool` runs several scraping passes against a local fixture server and
+asserts that the process exits on its own afterwards — a leaked worker thread keeps the
+Node event loop alive, so a hang is a leak. Its fixture redirects, mirroring production.
+
+`verify-redirects` covers redirect handling on its own. ScrapAPI hands the scraper
+`site.url + slug`, which has no trailing slash, and sites 301 to the canonical slashed
+form. A build that treats any redirect as "wrong page" finds zero chapters *and reports
+zero errors* — silent, total failure. It also checks that a redirect to the site root is
+still correctly read as "this manga is not here".
+
+Both run in CI.
 
 ## Contributing
 

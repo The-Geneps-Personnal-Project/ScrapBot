@@ -40,6 +40,9 @@ jobs:
       - name: Verify the scraping pool leaks no worker threads
         run: node scripts/verify-worker-pool.js
 
+      - name: Verify redirects do not make chapters disappear
+        run: node scripts/verify-redirects.js
+
   deploy:
     needs: verify
     # Only real pushes deploy; pull requests stop at the verify job.
