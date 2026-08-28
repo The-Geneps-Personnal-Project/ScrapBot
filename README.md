@@ -42,7 +42,6 @@ startup and refuses to boot with a readable message if something required is mis
 | `ANILIST_TOKEN` | no | Needed to push read progress to AniList and to mark must-watch entries PLANNING/CURRENT. The public metadata query is unauthenticated. |
 | `THREADS` | no | Scraping worker threads (default 4) |
 | `PUPPETEER_EXECUTABLE_PATH` | no | Chromium binary for JavaScript-rendered sites. On a Pi: `apt install chromium-browser`. |
-| `BACKUP_ENABLED` | no | Enables message archiving. Requires the privileged MessageContent intent — see `src/bot/backup.ts`. |
 
 ## Discord
 
@@ -60,6 +59,10 @@ containers rather than classic embeds.
   sort (name / last update / chapter) and a toggle to show only mangas with alerts on.
 - `/get sites` — every registered site.
 - `/get must-watch` — the backlog (see below).
+
+#### `/backup`
+
+Posts the daily digest on demand — see [Scheduling and the daily backup](#scheduling-and-the-daily-backup).
 
 #### `/status`
 
@@ -116,10 +119,26 @@ Most options autocomplete from your registered mangas and sites, showing 25 entr
 time and narrowing as you type. Results are cached for 30 seconds so Discord's 3-second
 autocomplete deadline is met even on a Raspberry Pi.
 
-## Scheduling
+## Scheduling and the daily backup
 
-A cron job scrapes every 3 hours between 07:00 and 23:00, and the updates channel is
-cleared daily at 06:45.
+A cron job scrapes every 3 hours between 07:00 and 23:00. At 06:45 the bot posts a
+**backup digest** to the backup channel and then clears the updates channel.
+
+The digest lists every chapter updated since the previous reset. Each entry carries an
+inline link to its first unread chapter, and below it a dropdown selects one manga while
+a link button follows that selection — a link button's URL is fixed at build time, so
+the message is rebuilt on each pick.
+
+The dropdown needs in-memory state, so it stops responding after a restart (the message
+says so); the inline links keep working regardless.
+
+`/backup` posts the digest immediately, without waiting for 06:45. Pass `reset:True` to
+also clear the day's tracking, exactly as the scheduled job does.
+
+Note this replaced an older feature that archived *deleted messages*. Notifications are
+Components V2 containers and carry no `content`, so reading `message.content` captured
+nothing — the digest is built from recorded update data instead, and no privileged
+intent is needed.
 
 ## Verifying the scraping pool
 

@@ -1,61 +1,89 @@
-import { Message, MessageFlags, PartialMessage, TextChannel } from "discord.js";
+import { MessageFlags, StringSelectMenuInteraction } from "discord.js";
 
 import CustomClient from "./classes/client";
-import { COLORS, noticeCard } from "./ui";
-import { truncate } from "../utils/utils";
+import { DailyUpdate } from "../types/types";
+import { dailyDigest } from "./ui";
 
 /**
- * Message archiving, kept behind an explicit opt-in.
+ * Daily backup digest posted to the backup channel before the updates channel is
+ * cleared.
  *
- * Reading `message.content` for anyone else's message requires the **privileged**
- * MessageContent intent, which has to be enabled in the Discord developer portal.
- * Requesting it unconditionally would make the bot fail to log in wherever it is not
- * enabled, so this stays off unless BACKUP_ENABLED=true — at which point
- * `MessageContent` must also be added to the intents in classes/client.ts.
+ * This replaces the previous approach of archiving deleted messages, which read
+ * `message.content`. Notifications are Components V2 containers and carry no content
+ * at all, so that archive silently captured nothing.
  */
-export function backupEnabled(): boolean {
-    return process.env.BACKUP_ENABLED === "true";
-}
 
-/** Reads the last archive's number so the next one can continue the sequence. */
-async function nextBackupNumber(channel: TextChannel): Promise<number> {
-    try {
-        const recent = await channel.messages.fetch({ limit: 1 });
-        const last = recent.first();
-        if (!last) return 1;
+/**
+ * Entries behind each posted digest, so the dropdown can rebuild the message with a
+ * different chapter link. Held in memory only: the digest also renders every chapter
+ * as an inline markdown link, which keeps working after a restart even once this map
+ * is empty.
+ */
+const posted = new Map<string, DailyUpdate[]>();
 
-        // `embeds[0]` used to be dereferenced unguarded, throwing whenever the last
-        // message in the channel had no embed.
-        const title = last.embeds[0]?.data.title ?? last.content ?? "";
-        const parsed = Number(title.replace(/[^0-9]/g, ""));
+/** Only the last few digests stay interactive; older ones fall back to their inline links. */
+const MAX_TRACKED_DIGESTS = 7;
 
-        return Number.isFinite(parsed) && parsed > 0 ? parsed + 1 : 1;
-    } catch {
-        return 1;
+function remember(messageId: string, entries: DailyUpdate[]): void {
+    posted.set(messageId, entries);
+
+    while (posted.size > MAX_TRACKED_DIGESTS) {
+        const oldest = posted.keys().next().value;
+        if (oldest === undefined) break;
+        posted.delete(oldest);
     }
 }
 
-export async function archiveDeletedMessages(
-    client: CustomClient,
-    backup: TextChannel,
-    messages: (Message | PartialMessage)[]
-): Promise<void> {
-    const bodies = messages
-        .map(message => message.content?.trim())
-        .filter((content): content is string => Boolean(content));
+/**
+ * Posts the digest for the given updates.
+ *
+ * @returns true when something was posted.
+ */
+export async function postDailyDigest(client: CustomClient, entries: DailyUpdate[]): Promise<boolean> {
+    const channel = client.chans.get("backup");
 
-    // Without content there is nothing worth archiving, and an empty description
-    // would make Discord reject the message outright.
-    if (bodies.length === 0) return;
+    if (!channel) {
+        client.logger(`No "backup" channel resolved — dropping the digest for ${entries.length} update(s).`);
+        return false;
+    }
 
-    const number = await nextBackupNumber(backup);
+    const ordered = [...entries].sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0));
+    const { container, rows } = dailyDigest(ordered, 0, client.user?.id ?? "");
 
     try {
-        await backup.send({
-            components: [noticeCard(`Backup n°${number}`, truncate(bodies.join("\n\n"), 3000), COLORS.warning)],
+        const message = await channel.send({
+            components: [container, ...rows],
             flags: MessageFlags.IsComponentsV2,
         });
+
+        if (ordered.length > 0) remember(message.id, ordered);
+
+        client.logger(`Posted daily digest with ${ordered.length} update(s).`);
+        return true;
     } catch (error) {
-        client.logger(`Failed to write backup n°${number}: ${(error as Error).message}`);
+        client.logger(`Failed to post the daily digest: ${(error as Error).message}`);
+        return false;
     }
+}
+
+/** Rebuilds a posted digest around the newly selected manga, so its button follows. */
+export async function handleDigestSelection(interaction: StringSelectMenuInteraction): Promise<void> {
+    const entries = posted.get(interaction.message.id);
+
+    if (!entries) {
+        // The bot restarted since this digest was posted. The inline links in the
+        // message still work, so say so rather than failing silently.
+        await interaction.reply({
+            content:
+                "Ce backup n'est plus interactif (le bot a redémarré depuis). " +
+                "Les liens de chaque chapitre restent cliquables dans le message.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+
+    const selected = Number(interaction.values[0]);
+    const { container, rows } = dailyDigest(entries, Number.isFinite(selected) ? selected : 0, interaction.user.id);
+
+    await interaction.update({ components: [container, ...rows], flags: MessageFlags.IsComponentsV2 });
 }

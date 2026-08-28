@@ -77,6 +77,26 @@ export interface WorkerTask {
     manga: MangaInfo;
 }
 
+/**
+ * One chapter update recorded during the day.
+ *
+ * Kept as structured data rather than read back from the notification messages:
+ * those are Components V2 containers, which carry no `content` at all — which is
+ * exactly why archiving them stopped capturing anything.
+ */
+export interface DailyUpdate {
+    name: string;
+    /** Chapter the reader was on before this update. */
+    from: string;
+    /** Highest chapter available. */
+    to: string;
+    /** First unread chapter — what the link points at. */
+    next: string;
+    url: string;
+    site: string;
+    at: string;
+}
+
 export type ScrapingOutcome = [ScrapingResult[], ScrapingError[]];
 
 export type linkResult = [number, string[], ScrapingError[]];

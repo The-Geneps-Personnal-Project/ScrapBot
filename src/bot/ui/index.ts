@@ -8,7 +8,7 @@ import {
     StringSelectMenuOptionBuilder,
 } from "discord.js";
 
-import { MangaInfo, ScrapingError, ScrapingResult, SiteInfo } from "../../types/types";
+import { DailyUpdate, MangaInfo, ScrapingError, ScrapingResult, SiteInfo } from "../../types/types";
 // `text` is aliased because the Components V2 builder callbacks below bind a
 // parameter of that name.
 import { compareNames, truncate, text as str } from "../../utils/utils";
@@ -497,4 +497,93 @@ export function mustWatchListPage(mangas: MangaInfo[]): ContainerBuilder {
     );
 
     return container;
+}
+
+/**
+ * Daily backup digest.
+ *
+ * Replaces the old "archive deleted messages" approach, which read `message.content`.
+ * Update notifications are Components V2 containers and carry no content at all, so
+ * that archive captured nothing. This is built from the recorded updates instead.
+ *
+ * Entries are also rendered as inline markdown links: the dropdown and button need
+ * in-memory state, but the links keep working forever, including after a restart.
+ */
+export const BACKUP_ID_PREFIX = "backup";
+
+/** Discord allows at most 25 options in a select menu. */
+const MAX_DIGEST_OPTIONS = 25;
+
+export function dailyDigest(entries: DailyUpdate[], selected: number, ownerId: string, day = new Date()) {
+    const container = new ContainerBuilder().setAccentColor(entries.length > 0 ? COLORS.success : COLORS.neutral);
+    const dayStamp = `<t:${Math.floor(day.getTime() / 1000)}:D>`;
+
+    container.addTextDisplayComponents(text =>
+        text.setContent(
+            `# 🗂️ Backup du ${dayStamp}\n**${entries.length}** chapitre${entries.length > 1 ? "s" : ""} mis à jour`
+        )
+    );
+
+    container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+
+    if (entries.length === 0) {
+        container.addTextDisplayComponents(text => text.setContent("_Aucune mise à jour sur la période._"));
+        return { container, rows: [] as ActionRowBuilder<StringSelectMenuBuilder>[] };
+    }
+
+    const lines = entries.map(entry => {
+        const range = entry.from && entry.from !== entry.to ? `${entry.from} → ${entry.to}` : entry.to;
+        const link = isHttpUrl(entry.url) ? `[chapitre ${entry.next}](${entry.url})` : `chapitre ${entry.next}`;
+        return `**${str(truncate(entry.name, 60), "_sans nom_")}** · ${range}\n-# ${link} · ${str(entry.site, "?")}`;
+    });
+
+    container.addTextDisplayComponents(text => text.setContent(truncate(lines.join("\n"), 3500)));
+
+    const options = entries.slice(0, MAX_DIGEST_OPTIONS);
+    const index = Math.min(Math.max(selected, 0), options.length - 1);
+    const current = options[index];
+
+    container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+
+    // The button is rebuilt on every selection, which is what makes it "follow" the
+    // dropdown: a link button's URL is fixed at build time and cannot be changed
+    // client-side.
+    if (isHttpUrl(current.url)) {
+        container.addSectionComponents(section =>
+            section
+                .addTextDisplayComponents(text =>
+                    text.setContent(`**${str(current.name, "?")}**\n-# premier chapitre non lu · ${current.next}`)
+                )
+                .setButtonAccessory(button =>
+                    button.setLabel(`Lire le ${current.next}`).setStyle(ButtonStyle.Link).setURL(current.url)
+                )
+        );
+    } else {
+        container.addTextDisplayComponents(text =>
+            text.setContent(`**${str(current.name, "?")}**\n-# aucun lien disponible pour cette entrée`)
+        );
+    }
+
+    const picker = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`${BACKUP_ID_PREFIX}:pick:${ownerId}`)
+            .setPlaceholder("Choisir un manga…")
+            .addOptions(
+                options.map((entry, position) =>
+                    new StringSelectMenuOptionBuilder()
+                        .setLabel(truncate(str(entry.name, "sans nom"), 100))
+                        .setDescription(truncate(`${entry.from} → ${entry.to} · ${str(entry.site, "?")}`, 100))
+                        .setValue(String(position))
+                        .setDefault(position === index)
+                )
+            )
+    );
+
+    if (entries.length > MAX_DIGEST_OPTIONS) {
+        container.addTextDisplayComponents(text =>
+            text.setContent(`-# Le sélecteur ne montre que les ${MAX_DIGEST_OPTIONS} premiers.`)
+        );
+    }
+
+    return { container, rows: [picker] };
 }

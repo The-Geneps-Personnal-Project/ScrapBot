@@ -124,7 +124,7 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
             manga.status !== "must_watch" &&
             manga.alert === 1 &&
             manga.sites.length > 0 &&
-            !client.dailyFeed.includes(manga.name)
+            !client.dailyFeed.some(entry => entry.name === manga.name)
     );
 
     if (queue.length === 0) {
@@ -161,7 +161,15 @@ export async function scrapeSiteInfo(client: CustomClient, elements: MangaInfo[]
 
                 if (message.type === "result") {
                     results.push(message.data);
-                    client.dailyFeed.push(message.data.manga.name);
+                    client.dailyFeed.push({
+                        name: message.data.manga.name,
+                        from: message.data.manga.chapter,
+                        to: message.data.lastChapter,
+                        next: message.data.nextChapter,
+                        url: message.data.url,
+                        site: message.data.site?.site ?? "",
+                        at: new Date().toISOString(),
+                    });
                 } else if (message.type === "error") {
                     errors.push(message.data);
                 }
