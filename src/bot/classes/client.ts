@@ -2,6 +2,7 @@ import { Client, Collection, TextChannel } from "discord.js";
 import requireAll from "require-all";
 import path from "path";
 
+import { DailyUpdate } from "../../types/types";
 import { handleEvent } from "../handler";
 import { Command } from "./command";
 import { Event } from "./events";
@@ -12,7 +13,8 @@ export default class CustomClient extends Client {
     commands: Collection<string, Command> = new Collection();
     /** Keyed by role, not by Discord channel name — renaming a channel no longer breaks lookups. */
     chans: Collection<ChannelKey, TextChannel> = new Collection();
-    dailyFeed: string[] = [];
+    /** Chapter updates recorded since the last daily reset, used for the backup digest. */
+    dailyFeed: DailyUpdate[] = [];
 
     constructor() {
         super({

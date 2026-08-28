@@ -1,6 +1,7 @@
 import { Event } from "../classes/events";
 import CustomClient from "../classes/client";
 import { startSchedulers } from "../scheduler";
+import { postDailyDigest } from "../backup";
 
 async function clearUpdatesChannel(client: CustomClient): Promise<void> {
     const channel = client.chans.get("updates");
@@ -28,6 +29,8 @@ export default new Event({
         }
 
         startSchedulers(client, async () => {
+            // Order matters: the digest is the record of what is about to be deleted.
+            await postDailyDigest(client, client.dailyFeed);
             await clearUpdatesChannel(client);
             client.dailyFeed = [];
         });

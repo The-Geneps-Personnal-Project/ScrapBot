@@ -9,7 +9,8 @@ import {
 import { Event } from "../classes/events";
 import { handleCommand } from "../handler";
 import CustomClient from "../classes/client";
-import { LIST_ID_PREFIX, ListSort, decodeListId } from "../ui";
+import { BACKUP_ID_PREFIX, LIST_ID_PREFIX, ListSort, decodeListId } from "../ui";
+import { handleDigestSelection } from "../backup";
 import { buildMangaList } from "../commands/get";
 
 /**
@@ -67,11 +68,22 @@ export default new Event({
             return;
         }
 
-        if (interaction.isMessageComponent() && interaction.customId.startsWith(`${LIST_ID_PREFIX}:`)) {
+        if (!interaction.isMessageComponent()) return;
+
+        if (interaction.customId.startsWith(`${LIST_ID_PREFIX}:`)) {
             try {
                 await handleListComponent(client, interaction);
             } catch (error) {
                 console.error(`List component failed: ${(error as Error).message}`);
+            }
+            return;
+        }
+
+        if (interaction.customId.startsWith(`${BACKUP_ID_PREFIX}:`) && interaction.isStringSelectMenu()) {
+            try {
+                await handleDigestSelection(interaction);
+            } catch (error) {
+                console.error(`Backup digest selection failed: ${(error as Error).message}`);
             }
         }
     },
